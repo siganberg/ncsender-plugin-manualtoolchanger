@@ -1,4 +1,6 @@
 ## What's Changed
 
-### ✨ New Features
-- Added support for TLS Z offset, allowing more precise tool length compensation during rapid tool changes
+### 🔧 Improvements
+- Renamed plugin from "Rapid Change Solo" to "Manual Toolchanger" for clarity
+- Added MIT license for open source distribution
+- Updated documentation
