@@ -1,13 +1,13 @@
 {
-  "id": "com.ncsender.rapidchangesolo",
-  "name": "Rapid Change Solo",
+  "id": "com.ncsender.manualtoolchange",
+  "name": "Manual ToolChanger",
   "version": "0.1.19",
   "minAppVersion": "0.3.111",
   "entry": "index.js",
   "author": "ncSender",
-  "description": "Simple rapid tool change workflow helper for manual tool changers.",
+  "description": "Manual tool change workflow with Tool Length Setter (TLS) support.",
   "category": "tool-changer",
-  "repository": "https://github.com/siganberg/ncsender-plugin-rapidchangesolo",
+  "repository": "https://github.com/siganberg/ncsender-plugin-manualtoolchanger",
   "priority": 50,
   "icon": "logo.png"
 }

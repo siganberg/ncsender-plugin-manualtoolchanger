@@ -1,6 +1,6 @@
 /**
- * Rapid Change Solo plugin
- * Simple rapid tool change workflow helper for manual tool changers.
+ * Manual ToolChanger
+ * Manual tool change workflow with Tool Length Setter (TLS) support.
  */
 
 const toFiniteNumber = (value, fallback = 0) => {
@@ -255,7 +255,7 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
 
   // Assemble complete program with return to units wrapper
   const gcode = `
-    (Start of RapidChangeSolo Plugin Sequence)
+    (Start of Manual ToolChanger Sequence)
     #<return_units> = [20 + #<_metric>]
     G21
     M5
@@ -264,7 +264,7 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
     G53 G0 Z${settings.zSafe}
     G[#<return_units>]
     G90
-    (End of RapidChangeSolo Plugin Sequence)
+    (End of Manual ToolChanger Sequence)
   `.trim();
 
   return formatGCode(gcode);
@@ -620,7 +620,7 @@ async function handleM6Command(commands, context, settings, ctx) {
 }
 
 export async function onLoad(ctx) {
-  ctx.log('Rapid Change Solo plugin loaded');
+  ctx.log('Manual ToolChanger loaded');
 
   // Get current plugin settings and app settings
   const pluginSettings = ctx.getSettings() || {};
@@ -643,7 +643,7 @@ export async function onLoad(ctx) {
       body: JSON.stringify({
         tool: {
           count: toolCount,
-          source: 'com.ncsender.rapidchangesolo',
+          source: 'com.ncsender.manualtoolchange',
           manual: isConfigured,
           tls: isConfigured
         }
@@ -651,7 +651,7 @@ export async function onLoad(ctx) {
     });
 
     if (response.ok) {
-      ctx.log(`Tool settings synchronized: count=${toolCount}, manual=${isConfigured}, tls=${isConfigured} (source: com.ncsender.rapidchangesolo)`);
+      ctx.log(`Tool settings synchronized: count=${toolCount}, manual=${isConfigured}, tls=${isConfigured} (source: com.ncsender.manualtoolchange)`);
     } else {
       ctx.log(`Failed to sync tool settings: ${response.status}`);
     }
@@ -757,12 +757,12 @@ export async function onLoad(ctx) {
         port: resolvedPort
       });
 
-      ctx.log('Rapid Change Solo settings saved');
+      ctx.log('Manual ToolChanger settings saved');
     }
   });
 
-  ctx.registerToolMenu('RapidChangeSolo', async () => {
-    ctx.log('RapidChangeSolo tool opened');
+  ctx.registerToolMenu('Manual Tool Changer', async () => {
+    ctx.log('Manual Tool Changer opened');
 
     const storedSettings = ctx.getSettings() || {};
     const appSettings = ctx.getAppSettings() || {};
@@ -773,7 +773,7 @@ export async function onLoad(ctx) {
       .replace(/>/g, '\\u003e');
 
     ctx.showDialog(
-      'RapidChange Solo',
+      'Manual ToolChanger',
       /* html */ `
       <style>
         .rcs-dialog-wrapper {
@@ -1482,7 +1482,7 @@ export async function onLoad(ctx) {
               }
 
             } catch (error) {
-              console.error('[RapidChangeSolo] Failed to grab coordinates:', error);
+              console.error('[ManualToolChanger] Failed to grab coordinates:', error);
             }
           };
 
@@ -1551,7 +1551,7 @@ export async function onLoad(ctx) {
               const payload = gatherFormData();
 
               try {
-                const pluginResponse = await fetch(BASE_URL + '/api/plugins/com.ncsender.rapidchangesolo/settings', {
+                const pluginResponse = await fetch(BASE_URL + '/api/plugins/com.ncsender.manualtoolchange/settings', {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(payload)
@@ -1568,7 +1568,7 @@ export async function onLoad(ctx) {
                   body: JSON.stringify({
                     tool: {
                       count: payload.numberOfTools || 1,
-                      source: 'com.ncsender.rapidchangesolo',
+                      source: 'com.ncsender.manualtoolchange',
                       manual: true,
                       tls: true
                     }
@@ -1589,7 +1589,7 @@ export async function onLoad(ctx) {
                   saveButton.classList.remove('rcs-button-saved');
                 }, 2000);
               } catch (error) {
-                console.error('[RapidChangeSolo] Failed to save settings:', error);
+                console.error('[ManualToolChanger] Failed to save settings:', error);
                 saveButton.disabled = false;
                 saveButton.classList.remove('rcs-button-busy');
               }
@@ -1629,7 +1629,7 @@ export async function onLoad(ctx) {
                 updateAxisDisplay(coords);
               }
             } catch (error) {
-              console.error('[RapidChangeSolo] Failed to fetch initial coordinates:', error);
+              console.error('[ManualToolChanger] Failed to fetch initial coordinates:', error);
             }
           };
 
@@ -1783,7 +1783,7 @@ export async function onLoad(ctx) {
 }
 
 export async function onUnload(ctx) {
-  ctx.log('Rapid Change Solo plugin unloading');
+  ctx.log('Manual ToolChanger unloading');
 
   // Reset tool settings to give control back to Settings > General
   const pluginSettings = ctx.getSettings() || {};
