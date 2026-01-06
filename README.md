@@ -17,42 +17,88 @@ Install this plugin in ncSender through the Plugins interface.
 - Same-tool change detection and skipping
 
 ### Tool Length Setter Integration
-- Automated tool length probing with $TLS command
+- Automated tool length probing with `$TLS` command
 - Configurable tool setter location (X/Y/Z coordinates)
 - Configurable probe parameters (seek distance, feedrate)
-- Automatic tool offset management
-- Optional TLS after homing
+- Automatic tool offset management via G43.1
+- Per-tool TLS offsets from Tool Library
+- Optional automatic TLS after first `$H` (home) command
 
 ### Safety Features
 - Modal dialogs for load/unload confirmation
-- Visual progress indicators on buttons
 - Non-closable safety dialogs during critical operations
-- Clear instructions with emphasized safety warnings
+- Clear instructions with Abort/Continue options
+- Optional pause before unload confirmation
 
-### Configuration
-- Tool Setter location (X/Y/Z coordinates)
-- Manual Tool Change location (X/Y coordinates)
-- RapidChangeSolo pocket location (X/Y/Z coordinates) - optional
-- Advanced JSON-configurable parameters:
-  - Z-axis positions (engagement, safe, spin-off, retreat)
-  - RPM settings (load/unload)
-  - Engagement feedrate
-  - Tool length setter parameters
+### Supported Commands
 
-### Automatic Settings Management
-- Configurable tool count
-- Enables manual tool change mode when configured
-- Enables TLS integration when configured
-- Resets settings on plugin disable
+| Command | Description |
+|---------|-------------|
+| `M6 Tx` | Perform tool change to tool number x |
+| `$TLS` | Run tool length setter routine |
+| `$POCKET1` | Move to RapidChangeSolo pocket location |
+| `$H` | Home machine (with optional automatic TLS if tool loaded) |
+
+### Configuration Options
+
+**Tool Setter**
+- X/Y/Z location coordinates
+- Seek distance (mm)
+- Seek feedrate (mm/min)
+
+**Manual Tool Change Location**
+- X/Y parking coordinates for manual tool swaps
+
+**RapidChangeSolo** (Optional)
+- Enable/disable spindle-engaged tool swapping
+- Pocket X/Y location and Z engagement depth
+- Pause before unload option
+
+**Tool Settings**
+- Number of tools (1-98)
+- Show macro commands in terminal
+- Perform TLS after first HOME
+
+### Advanced Settings (JSON only)
+
+These settings can be modified directly in the plugin settings JSON:
+
+```json
+{
+  "zSafe": 0,
+  "zSpinOff": 23,
+  "zRetreat": 10,
+  "unloadRpm": 1500,
+  "loadRpm": 1200,
+  "engageFeedrate": 3500,
+  "zProbeStart": -10
+}
+```
 
 ## Usage
 
-1. Configure the Tool Setter location using the "Grab" button while positioned at the tool setter
-2. Configure the Manual Tool Change location using the "Grab" button
-3. Optionally enable RapidChangeSolo and configure pocket location
-4. Save configuration
-5. Use M6 commands in your G-code for automated tool changes
-6. Use $TLS command for tool length measurement
+1. Open the Manual Tool Changer dialog from the Tools menu
+2. Configure the **Tool Setter** location using the "Grab" button
+3. Configure the **Manual Tool Change** location using the "Grab" button
+4. Optionally enable **RapidChangeSolo** and configure pocket location
+5. Set the number of tools in your library
+6. Save configuration
+
+### G-code Commands
+
+```gcode
+; Tool change
+M6 T1
+
+; Manual tool length measurement
+$TLS
+
+; Move to pocket (RapidChangeSolo)
+$POCKET1
+
+; Home with automatic TLS (if enabled)
+$H
+```
 
 ## Development
 
