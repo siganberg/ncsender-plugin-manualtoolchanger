@@ -59,7 +59,12 @@ const buildInitialConfig = (raw = {}) => ({
   // Tool Length Setter Settings
   zProbeStart: toFiniteNumber(raw.zProbeStart, -10),
   seekDistance: toFiniteNumber(raw.seekDistance, 50),
-  seekFeedrate: toFiniteNumber(raw.seekFeedrate, 100)
+  seekFeedrate: toFiniteNumber(raw.seekFeedrate, 100),
+
+  // Aux Output Settings (-1 = disabled, 0+ = M64 P{n}, 'M7' or 'M8' for coolant)
+  tlsAuxOutput: raw.tlsAuxOutput === 'M7' || raw.tlsAuxOutput === 'M8'
+    ? raw.tlsAuxOutput
+    : toFiniteNumber(raw.tlsAuxOutput, -1)
 });
 
 const resolveServerPort = (pluginSettings = {}, appSettings = {}) => {
@@ -117,16 +122,30 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
   // Extra Z rapid move for shorter tools (z offset is typically negative)
   const extraZMove = tlsZ !== 0 ? `G91 G0 Z${tlsZ}\n    G90` : '';
 
+  // Aux output switching during TLS (if configured)
+  const auxOutput = settings.tlsAuxOutput;
+  let auxOn = '';
+  let auxOff = '';
+  if (auxOutput === 'M7' || auxOutput === 'M8') {
+    auxOn = `G4 P0\n    ${auxOutput}\n    G4 P0`;
+    auxOff = `G4 P0\n    M9\n    G4 P0`;
+  } else if (typeof auxOutput === 'number' && auxOutput >= 0) {
+    auxOn = `G4 P0\n    M64 P${auxOutput}\n    G4 P0`;
+    auxOff = `G4 P0\n    M65 P${auxOutput}\n    G4 P0`;
+  }
+
   return `
     G53 G0 Z${settings.zSafe}
     G53 G0 X${tlsX} Y${tlsY}
     G53 G0 Z${settings.toolSetter.z}
     ${extraZMove}
+    ${auxOn}
     G43.1 Z0
     G38.2 G91 Z-${settings.seekDistance} F${settings.seekFeedrate}
     G38.4 G91 Z5 F${fineProbeFeedrate}
     G91 G0 Z5
     G90
+    ${auxOff}
     #<_ofs_idx> = [#5220 * 20 + 5203]
     #<_cur_wcs_z_ofs> = #[#<_ofs_idx>]
     #<_rc_trigger_mach_z> = [#5063 + #<_cur_wcs_z_ofs>]
@@ -842,7 +861,6 @@ export async function onLoad(ctx) {
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          margin-bottom: 12px;
         }
 
         .rcs-form-row-single .rcs-form-label {
@@ -853,7 +871,7 @@ export async function onLoad(ctx) {
 
         .rcs-form-row-single .rcs-select {
           flex: 0 0 auto;
-          width: 70px;
+          width: 100px;
         }
 
         .rcs-select {
@@ -1039,6 +1057,9 @@ export async function onLoad(ctx) {
           border: 1px solid var(--color-border);
           border-radius: var(--radius-small);
           padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
 
         .rcs-pocket-header {
@@ -1046,7 +1067,6 @@ export async function onLoad(ctx) {
           justify-content: space-between;
           align-items: center;
           gap: 12px;
-          margin-bottom: 16px;
         }
 
         .rcs-pocket-header-left {
@@ -1096,8 +1116,6 @@ export async function onLoad(ctx) {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-top: 12px;
-          padding: 4px 0;
         }
 
         .rcs-toggle-label {
@@ -1332,6 +1350,13 @@ export async function onLoad(ctx) {
                     <div class="rcs-toggle-switch-knob"></div>
                   </div>
                 </div>
+
+                <div class="rcs-form-row-single">
+                  <label class="rcs-form-label">Switch Aux during TLS</label>
+                  <select class="rcs-select" id="rcs-tls-aux-output">
+                    <option value="-1">Disabled</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
@@ -1468,6 +1493,8 @@ export async function onLoad(ctx) {
                 performTlsAfterHomeToggle.classList.remove('active');
               }
             }
+
+            // tlsAuxOutput is set after dropdown is populated
           };
 
           const grabCoordinates = async (prefix) => {
@@ -1544,7 +1571,12 @@ export async function onLoad(ctx) {
               autoSwap: autoSwapToggle ? autoSwapToggle.classList.contains('active') : false,
               pauseBeforeUnload: pauseBeforeUnloadToggle ? pauseBeforeUnloadToggle.classList.contains('active') : true,
               showMacroCommand: showMacroCommandToggle ? showMacroCommandToggle.classList.contains('active') : false,
-              performTlsAfterHome: performTlsAfterHomeToggle ? performTlsAfterHomeToggle.classList.contains('active') : false
+              performTlsAfterHome: performTlsAfterHomeToggle ? performTlsAfterHomeToggle.classList.contains('active') : false,
+              tlsAuxOutput: (() => {
+                const val = getInput('rcs-tls-aux-output').value;
+                if (val === 'M7' || val === 'M8') return val;
+                return parseInt(val) || -1;
+              })()
             };
           };
 
@@ -1645,6 +1677,59 @@ export async function onLoad(ctx) {
               }
             } catch (error) {
               console.error('[ManualToolChanger] Failed to fetch initial coordinates:', error);
+            }
+          };
+
+          const populateAuxOutputs = async () => {
+            try {
+              // Fetch both server state (for outputPins count) and settings (for custom names)
+              const [stateResponse, settingsResponse] = await Promise.all([
+                fetch(BASE_URL + '/api/server-state'),
+                fetch(BASE_URL + '/api/settings')
+              ]);
+
+              if (!stateResponse.ok) return;
+
+              const state = await stateResponse.json();
+              const settings = settingsResponse.ok ? await settingsResponse.json() : {};
+              const outputPins = state?.machineState?.outputPins || state?.outputPins || 0;
+              const auxOutputsConfig = settings?.auxOutputs || [];
+
+              // Build a map of G-code command to custom name
+              const nameMap = {};
+              for (const output of auxOutputsConfig) {
+                if (output.on && output.name) {
+                  nameMap[output.on.toUpperCase()] = output.name;
+                }
+              }
+
+              const select = getInput('rcs-tls-aux-output');
+              if (!select) return;
+
+              // Add M7 and M8 coolant options (check for custom names)
+              const m8Option = document.createElement('option');
+              m8Option.value = 'M8';
+              m8Option.textContent = nameMap['M8'] || 'M8';
+              select.appendChild(m8Option);
+
+              const m7Option = document.createElement('option');
+              m7Option.value = 'M7';
+              m7Option.textContent = nameMap['M7'] || 'M7';
+              select.appendChild(m7Option);
+
+              // Add options for each available aux output
+              for (let i = 0; i < outputPins; i++) {
+                const option = document.createElement('option');
+                const gcode = 'M64 P' + i;
+                option.value = i;
+                option.textContent = nameMap[gcode.toUpperCase()] || gcode;
+                select.appendChild(option);
+              }
+
+              // Set initial value
+              select.value = initialConfig.tlsAuxOutput ?? -1;
+            } catch (error) {
+              console.error('[ManualToolChanger] Failed to populate aux outputs:', error);
             }
           };
 
@@ -1787,6 +1872,7 @@ export async function onLoad(ctx) {
           registerButton(PARKING_PREFIX, 'rcs-parking-grab');
 
           fetchInitialCoordinates();
+          populateAuxOutputs();
         })();
       </script>
     `,
