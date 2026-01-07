@@ -1,6 +1,4 @@
 ## What's Changed
 
-### 🔧 Improvements
-- Renamed plugin from "Rapid Change Solo" to "Manual Toolchanger" for clarity
-- Added MIT license for open source distribution
-- Updated documentation
+### ✨ New Features
+- Added option to turn on Aux output during tool length sensor (TLS) operations
