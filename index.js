@@ -161,6 +161,7 @@ function createToolUnload(settings, targetTool) {
   const messageCode = settings.autoSwap ? 'PLUGIN_RCS:UNLOAD_MESSAGE' : 'PLUGIN_RCS:UNLOAD_MESSAGE_MANUAL';
   const needsPause = settings.pauseBeforeUnload;
   const confirmationLines = needsPause ? `
+    G4 P0
     (MSG, ${messageCode})
     M0` : '';
 
@@ -195,6 +196,7 @@ function createToolUnload(settings, targetTool) {
     // Only show confirmation if unloading only (not swapping) - swap shows combined message in load
     const isUnloadOnly = targetTool === 0;
     const manualConfirmation = isUnloadOnly ? `
+      G4 P0
       (MSG, ${messageCode})
       M0` : '';
 
@@ -224,6 +226,7 @@ function createToolLoad(settings, toolNumber, hasUnload) {
     // RapidChangeSolo ON: Go to manual location, show message, then move to pocket1 to load
     return `
       ${moveToManualLocation}
+      G4 P0
       (MSG, ${messageCode})
       M0
       G53 G0 Z${settings.zSafe}
@@ -247,6 +250,7 @@ function createToolLoad(settings, toolNumber, hasUnload) {
     return `
       ${moveToManualLocation}
       G53 G0 Z0
+      G4 P0
       (MSG, ${messageCode})
       M0
       M61 Q${toolNumber}
