@@ -1,4 +1,5 @@
 ## What's Changed
 
-### ✨ New Features
-- Added option to turn on Aux output during tool length sensor (TLS) operations
+### 🔧 Improvements
+- Added synchronization command before tool change dialogs to ensure proper timing
+- Updated license to dual GPL v3 and Commercial licensing model
