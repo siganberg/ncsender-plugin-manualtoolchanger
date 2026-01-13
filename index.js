@@ -64,7 +64,12 @@ const buildInitialConfig = (raw = {}) => ({
   // Aux Output Settings (-1 = disabled, 0+ = M64 P{n}, 'M7' or 'M8' for coolant)
   tlsAuxOutput: raw.tlsAuxOutput === 'M7' || raw.tlsAuxOutput === 'M8'
     ? raw.tlsAuxOutput
-    : toFiniteNumber(raw.tlsAuxOutput, -1)
+    : toFiniteNumber(raw.tlsAuxOutput, -1),
+
+  // Tool Change Events
+  preToolChangeGcode: raw.preToolChangeGcode ?? '',
+  postToolChangeGcode: raw.postToolChangeGcode ?? '',
+  abortEventGcode: raw.abortEventGcode ?? ''
 });
 
 const resolveServerPort = (pluginSettings = {}, appSettings = {}) => {
@@ -291,9 +296,14 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
   const unloadSection = buildUnloadTool(settings, currentTool, toolNumber);
   const loadSection = buildLoadTool(settings, toolNumber, tlsRoutine, hasUnload);
 
+  // Tool change event commands
+  const preToolChangeCmd = settings.preToolChangeGcode?.trim() || '';
+  const postToolChangeCmd = settings.postToolChangeGcode?.trim() || '';
+
   // Assemble complete program with return to units wrapper
   const gcode = `
     (Start of Manual ToolChanger Sequence)
+    ${preToolChangeCmd}
     #<return_units> = [20 + #<_metric>]
     G21
     M5
@@ -302,6 +312,7 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
     G53 G0 Z${settings.zSafe}
     G[#<return_units>]
     G90
+    ${postToolChangeCmd}
     (End of Manual ToolChanger Sequence)
   `.trim();
 
@@ -468,7 +479,9 @@ async function handleHomeCommand(commands, context, settings, ctx) {
 }
 
 // Show safety warning dialog
-function showSafetyWarningDialog(ctx, title, message, continueLabel) {
+function showSafetyWarningDialog(ctx, title, message, continueLabel, abortEventGcode = '') {
+  const abortGcodeLines = abortEventGcode ? abortEventGcode.trim().split('\\n').filter(line => line.trim()) : [];
+  const abortGcodeJson = JSON.stringify(abortGcodeLines);
   ctx.showModal(
     /* html */ `
       <style>
@@ -556,12 +569,25 @@ function showSafetyWarningDialog(ctx, title, message, continueLabel) {
         (function() {
           const abortBtn = document.getElementById('rcs-abort-btn');
           const continueBtn = document.getElementById('rcs-continue-btn');
+          const abortGcodeLines = ${abortGcodeJson};
 
           abortBtn.addEventListener('click', function() {
             if (abortBtn.disabled) return;
             abortBtn.disabled = true;
             continueBtn.disabled = true;
 
+            // Execute abort event G-code first if configured
+            if (abortGcodeLines.length > 0) {
+              abortGcodeLines.forEach(function(line) {
+                window.postMessage({
+                  type: 'send-command',
+                  command: line,
+                  displayCommand: line
+                }, '*');
+              });
+            }
+
+            // Then send soft reset to stop everything
             window.postMessage({
               type: 'send-command',
               command: '\\x18',
@@ -729,6 +755,7 @@ export async function onLoad(ctx) {
     if (typeof data === 'string') {
       const upperData = data.toUpperCase();
       if (upperData.includes('[MSG') && upperData.includes('PLUGIN_RCS:')) {
+        const settings = buildInitialConfig(ctx.getSettings() || {});
         for (const [code, config] of Object.entries(MESSAGE_MAP)) {
           const codePattern = code + '_';
           const codeIndex = upperData.indexOf(codePattern);
@@ -740,10 +767,10 @@ export async function onLoad(ctx) {
 
             const styledToolNumber = `<strong style="color: var(--color-accent);">T${toolNumber}</strong>`;
             const message = config.message.replace('{toolNumber}', styledToolNumber);
-            showSafetyWarningDialog(ctx, config.title, message, config.continueLabel);
+            showSafetyWarningDialog(ctx, config.title, message, config.continueLabel, settings.abortEventGcode);
             break;
           } else if (upperData.includes(code)) {
-            showSafetyWarningDialog(ctx, config.title, config.message, config.continueLabel);
+            showSafetyWarningDialog(ctx, config.title, config.message, config.continueLabel, settings.abortEventGcode);
             break;
           }
         }
@@ -825,10 +852,90 @@ export async function onLoad(ctx) {
           padding: 10px 30px;
         }
 
+        .rcs-tabs {
+          display: flex;
+          border-bottom: 1px solid var(--color-border);
+          background: var(--color-surface-muted);
+          padding: var(--gap-xs) var(--gap-md) 0 var(--gap-md);
+          gap: 2px;
+          border-left: 1px solid var(--color-border);
+          border-right: 1px solid var(--color-border);
+          border-top: 1px solid var(--color-border);
+        }
+
+        .rcs-tab {
+          all: unset;
+          display: flex;
+          align-items: center;
+          gap: var(--gap-xs);
+          padding: var(--gap-sm) var(--gap-md);
+          background: transparent !important;
+          border: none !important;
+          border-radius: var(--radius-small) var(--radius-small) 0 0 !important;
+          color: var(--color-text-secondary) !important;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-size: 0.95rem;
+          font-weight: 500;
+          margin-top: var(--gap-xs);
+          position: relative;
+          box-sizing: border-box;
+        }
+
+        .rcs-tab:hover {
+          background: var(--color-surface) !important;
+          color: var(--color-text-primary);
+          transform: translateY(-1px);
+          filter: none !important;
+        }
+
+        .rcs-tab.active {
+          background: var(--color-surface) !important;
+          color: var(--color-text-primary) !important;
+          box-shadow: var(--shadow-elevated);
+          border-bottom: 2px solid var(--color-accent) !important;
+          filter: none !important;
+        }
+
+        .rcs-tab.active::after {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: var(--gradient-accent);
+          border-radius: 2px 2px 0 0;
+        }
+
+        .rcs-tab:focus-visible {
+          outline: 2px solid var(--color-accent);
+          outline-offset: 2px;
+        }
+
+        .rcs-tab-label {
+          font-weight: 600;
+        }
+
         .rcs-content {
+          height: 630px;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .rcs-tab-content {
+          flex: 1;
           overflow-y: auto;
           padding: 30px;
           padding-top: 20px;
+        }
+
+        .rcs-tab-panel {
+          display: none;
+        }
+
+        .rcs-tab-panel.active {
+          display: block;
         }
 
         .rcs-container {
@@ -1200,11 +1307,51 @@ export async function onLoad(ctx) {
           opacity: 0.6;
           cursor: wait;
         }
+
+        .rcs-events-container {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .rcs-event-group {
+          background: color-mix(in srgb, var(--color-surface) 40%, var(--color-surface-muted) 60%);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-small);
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .rcs-event-description {
+          font-size: 0.8rem;
+          color: var(--color-text-secondary);
+          margin-bottom: 4px;
+        }
+
+        .rcs-monaco-container {
+          height: 100px;
+          border: 1px solid var(--color-border);
+          border-radius: var(--radius-small);
+          overflow: hidden;
+        }
       </style>
 
       <div class="rcs-dialog-wrapper">
+        <div class="rcs-tabs">
+          <button class="rcs-tab active" data-tab="basic">
+            <span class="rcs-tab-label">Basic</span>
+          </button>
+          <button class="rcs-tab" data-tab="events">
+            <span class="rcs-tab-label">Events</span>
+          </button>
+        </div>
         <div class="rcs-content">
-          <div class="rcs-container">
+          <div class="rcs-tab-content">
+            <!-- Basic Tab -->
+            <div class="rcs-tab-panel active" id="rcs-tab-basic">
+              <div class="rcs-container">
             <!-- Left Column -->
             <div class="rcs-left-column">
               <!-- Tool Setter Location -->
@@ -1364,6 +1511,31 @@ export async function onLoad(ctx) {
               </div>
             </div>
           </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div class="rcs-tab-panel" id="rcs-tab-events">
+              <div class="rcs-events-container">
+                <div class="rcs-event-group">
+                  <label class="rcs-form-label" style="text-align: left; font-size: 14px;">Pre Tool Change Event</label>
+                  <div class="rcs-event-description">G-code to execute at the very start of the tool change sequence, before any other operations.</div>
+                  <div class="rcs-monaco-container" id="rcs-pre-tool-change-editor"></div>
+                </div>
+
+                <div class="rcs-event-group">
+                  <label class="rcs-form-label" style="text-align: left; font-size: 14px;">Post Tool Change Event</label>
+                  <div class="rcs-event-description">G-code to execute at the very end of the tool change sequence, after all operations complete.</div>
+                  <div class="rcs-monaco-container" id="rcs-post-tool-change-editor"></div>
+                </div>
+
+                <div class="rcs-event-group">
+                  <label class="rcs-form-label" style="text-align: left; font-size: 14px;">Abort Event</label>
+                  <div class="rcs-event-description">G-code to execute when the abort button is pressed during tool change. Runs before soft reset.</div>
+                  <div class="rcs-monaco-container" id="rcs-abort-event-editor"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="rcs-footer">
@@ -1380,6 +1552,72 @@ export async function onLoad(ctx) {
           const PARKING_PREFIX = 'parking';
 
           const initialConfig = JSON.parse('${initialConfigJson}');
+
+          // Monaco editor instances
+          let preToolChangeEditor = null;
+          let postToolChangeEditor = null;
+          let abortEventEditor = null;
+
+          // Tab switching
+          const tabs = document.querySelectorAll('.rcs-tab');
+          const tabPanels = document.querySelectorAll('.rcs-tab-panel');
+
+          tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+              const targetTab = tab.dataset.tab;
+
+              tabs.forEach(t => t.classList.remove('active'));
+              tabPanels.forEach(p => p.classList.remove('active'));
+
+              tab.classList.add('active');
+              document.getElementById('rcs-tab-' + targetTab).classList.add('active');
+
+              // Layout Monaco editors when Events tab is shown
+              if (targetTab === 'events') {
+                if (preToolChangeEditor) preToolChangeEditor.layout();
+                if (postToolChangeEditor) postToolChangeEditor.layout();
+                if (abortEventEditor) abortEventEditor.layout();
+              }
+            });
+          });
+
+          // Initialize Monaco editors
+          const monacoOptions = {
+            language: 'gcode',
+            theme: 'vs-dark',
+            minimap: { enabled: false },
+            lineNumbers: 'on',
+            scrollBeyondLastLine: false,
+            automaticLayout: false,
+            fontSize: 12,
+            tabSize: 2
+          };
+
+          if (typeof monaco !== 'undefined') {
+            const preToolChangeContainer = document.getElementById('rcs-pre-tool-change-editor');
+            if (preToolChangeContainer) {
+              preToolChangeEditor = monaco.editor.create(preToolChangeContainer, {
+                ...monacoOptions,
+                value: initialConfig.preToolChangeGcode || ''
+              });
+            }
+
+            const postToolChangeContainer = document.getElementById('rcs-post-tool-change-editor');
+            if (postToolChangeContainer) {
+              postToolChangeEditor = monaco.editor.create(postToolChangeContainer, {
+                ...monacoOptions,
+                value: initialConfig.postToolChangeGcode || ''
+              });
+            }
+
+            const abortEventContainer = document.getElementById('rcs-abort-event-editor');
+            if (abortEventContainer) {
+              abortEventEditor = monaco.editor.create(abortEventContainer, {
+                ...monacoOptions,
+                value: initialConfig.abortEventGcode || ''
+              });
+            }
+          }
 
           const getInput = (id) => document.getElementById(id);
           const formatCoordinate = (value) => (Number.isFinite(value) ? value.toFixed(3) : '0.000');
@@ -1580,7 +1818,10 @@ export async function onLoad(ctx) {
                 const val = getInput('rcs-tls-aux-output').value;
                 if (val === 'M7' || val === 'M8') return val;
                 return parseInt(val) || -1;
-              })()
+              })(),
+              preToolChangeGcode: preToolChangeEditor ? preToolChangeEditor.getValue() : '',
+              postToolChangeGcode: postToolChangeEditor ? postToolChangeEditor.getValue() : '',
+              abortEventGcode: abortEventEditor ? abortEventEditor.getValue() : ''
             };
           };
 
