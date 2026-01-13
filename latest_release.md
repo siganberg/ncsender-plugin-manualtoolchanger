@@ -1,5 +1,4 @@
 ## What's Changed
 
-### 🔧 Improvements
-- Added synchronization command before tool change dialogs to ensure proper timing
-- Updated license to dual GPL v3 and Commercial licensing model
+### ✨ New Features
+- Added Event command support for Pre, Post, and Abort tool change events
