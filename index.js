@@ -43,6 +43,7 @@ const buildInitialConfig = (raw = {}) => ({
   pauseBeforeUnload: raw.pauseBeforeUnload !== false,
   showMacroCommand: raw.showMacroCommand ?? false,
   performTlsAfterHome: raw.performTlsAfterHome ?? false,
+  waitForSpindle: raw.waitForSpindle !== false,
 
   // Advanced Settings (no UI, JSON only)
   // Z-axis Settings
@@ -182,15 +183,18 @@ function createToolUnload(settings, targetTool) {
     const moveToManualAfterUnload = targetTool !== 0 ? `
       G53 G0 X${settings.parking.x} Y${settings.parking.y}` : '';
 
+    // Insert G65P6 to skip spindle wait when waitForSpindle is disabled
+    const g65p6 = settings.waitForSpindle ? '' : 'G65P6';
+
     return `
       G53 G0 Z${settings.zSafe}
       ${pauseSequence}
       G53 G0 Z${settings.zEngagement + settings.zSpinOff}
-      G65P6
+      ${g65p6}
       M4 S${settings.unloadRpm}
       G53 G1 Z${settings.zEngagement} F${settings.engageFeedrate}
       G53 G1 Z${settings.zEngagement + settings.zRetreat} F${settings.engageFeedrate}
-      G65P6
+      ${g65p6}
       M5
       M61 Q0
       G53 G0 Z${settings.zSafe}
@@ -229,6 +233,9 @@ function createToolLoad(settings, toolNumber, hasUnload) {
 
   if (settings.autoSwap) {
     // RapidChangeSolo ON: Go to manual location, show message, then move to pocket1 to load
+    // Insert G65P6 to skip spindle wait when waitForSpindle is disabled
+    const g65p6 = settings.waitForSpindle ? '' : 'G65P6';
+
     return `
       ${moveToManualLocation}
       G4 P0
@@ -237,7 +244,7 @@ function createToolLoad(settings, toolNumber, hasUnload) {
       G53 G0 Z${settings.zSafe}
       G53 G0 X${settings.pocket1.x} Y${settings.pocket1.y}
       G53 G0 Z${settings.zEngagement + settings.zSpinOff}
-      G65P6
+      ${g65p6}
       M3 S${settings.loadRpm}
       G53 G1 Z${settings.zEngagement} F${settings.engageFeedrate}
       G53 G1 Z${settings.zEngagement + settings.zRetreat} F${settings.engageFeedrate}
@@ -245,7 +252,7 @@ function createToolLoad(settings, toolNumber, hasUnload) {
       G53 G1 Z${settings.zEngagement + settings.zRetreat} F${settings.engageFeedrate}
       G53 G1 Z${settings.zEngagement} F${settings.engageFeedrate}
       G53 G1 Z${settings.zEngagement + settings.zRetreat} F${settings.engageFeedrate}
-      G65P6
+      ${g65p6}
       M5
       M61 Q${toolNumber}
       G53 G0 Z${settings.zSafe}
@@ -1444,6 +1451,13 @@ export async function onLoad(ctx) {
                   </div>
                 </div>
 
+                <div class="rcs-toggle-row" id="rcs-wait-for-spindle-row">
+                  <span class="rcs-toggle-label">Wait for Spindle</span>
+                  <div class="rcs-toggle-switch active" id="rcs-wait-for-spindle-toggle">
+                    <div class="rcs-toggle-switch-knob"></div>
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -1718,6 +1732,15 @@ export async function onLoad(ctx) {
               }
             }
 
+            const waitForSpindleToggle = document.getElementById('rcs-wait-for-spindle-toggle');
+            if (waitForSpindleToggle) {
+              if (initialConfig.waitForSpindle) {
+                waitForSpindleToggle.classList.add('active');
+              } else {
+                waitForSpindleToggle.classList.remove('active');
+              }
+            }
+
             const showMacroCommandToggle = document.getElementById('rcs-show-macro-command-toggle');
             if (showMacroCommandToggle) {
               if (initialConfig.showMacroCommand) {
@@ -1789,6 +1812,7 @@ export async function onLoad(ctx) {
           const gatherFormData = () => {
             const autoSwapToggle = document.getElementById('rcs-autoswap-toggle');
             const pauseBeforeUnloadToggle = document.getElementById('rcs-pause-before-unload-toggle');
+            const waitForSpindleToggle = document.getElementById('rcs-wait-for-spindle-toggle');
             const showMacroCommandToggle = document.getElementById('rcs-show-macro-command-toggle');
             const performTlsAfterHomeToggle = document.getElementById('rcs-perform-tls-after-home-toggle');
 
@@ -1812,6 +1836,7 @@ export async function onLoad(ctx) {
               numberOfTools: parseInt(getInput('rcs-number-of-tools').value) || 1,
               autoSwap: autoSwapToggle ? autoSwapToggle.classList.contains('active') : false,
               pauseBeforeUnload: pauseBeforeUnloadToggle ? pauseBeforeUnloadToggle.classList.contains('active') : true,
+              waitForSpindle: waitForSpindleToggle ? waitForSpindleToggle.classList.contains('active') : true,
               showMacroCommand: showMacroCommandToggle ? showMacroCommandToggle.classList.contains('active') : false,
               performTlsAfterHome: performTlsAfterHomeToggle ? performTlsAfterHomeToggle.classList.contains('active') : false,
               tlsAuxOutput: (() => {
@@ -1980,6 +2005,7 @@ export async function onLoad(ctx) {
 
           const autoSwapToggle = document.getElementById('rcs-autoswap-toggle');
           const pauseBeforeUnloadRow = document.getElementById('rcs-pause-before-unload-row');
+          const waitForSpindleRow = document.getElementById('rcs-wait-for-spindle-row');
 
           const updateRapidChangeState = () => {
             const isEnabled = autoSwapToggle && autoSwapToggle.classList.contains('active');
@@ -2000,6 +2026,15 @@ export async function onLoad(ctx) {
                 pauseBeforeUnloadRow.classList.remove('disabled');
               } else {
                 pauseBeforeUnloadRow.classList.add('disabled');
+              }
+            }
+
+            // Update Wait for Spindle row
+            if (waitForSpindleRow) {
+              if (isEnabled) {
+                waitForSpindleRow.classList.remove('disabled');
+              } else {
+                waitForSpindleRow.classList.add('disabled');
               }
             }
           };
@@ -2079,6 +2114,13 @@ export async function onLoad(ctx) {
           if (pauseBeforeUnloadToggle) {
             pauseBeforeUnloadToggle.addEventListener('click', function() {
               pauseBeforeUnloadToggle.classList.toggle('active');
+            });
+          }
+
+          const waitForSpindleToggle = document.getElementById('rcs-wait-for-spindle-toggle');
+          if (waitForSpindleToggle) {
+            waitForSpindleToggle.addEventListener('click', function() {
+              waitForSpindleToggle.classList.toggle('active');
             });
           }
 
