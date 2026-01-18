@@ -852,7 +852,7 @@ export async function onLoad(ctx) {
           display: grid;
           grid-template-rows: auto 1fr auto;
           overflow: hidden;
-          width: 800px;
+          width: 900px;
         }
 
         .rcs-header {
@@ -1063,21 +1063,21 @@ export async function onLoad(ctx) {
         }
 
         .rcs-form-row {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
+          display: flex;
+          justify-content: center;
+          gap: 24px;
         }
 
         .rcs-form-row-2col {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
+          display: flex;
+          justify-content: center;
+          gap: 24px;
         }
 
         .rcs-form-row-3col {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
+          display: flex;
+          justify-content: center;
+          gap: 24px;
         }
 
         .rcs-form-group {
@@ -1087,13 +1087,28 @@ export async function onLoad(ctx) {
           align-items: center;
         }
 
+        .rcs-form-group-inline {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .rcs-form-group-inline .rcs-form-label {
+          font-size: 0.85rem;
+          min-width: auto;
+        }
+
+        .rcs-form-group-inline .rcs-input {
+          width: 90px;
+        }
+
         .rcs-form-group-horizontal {
           display: flex;
           flex-direction: row;
           gap: 12px;
           align-items: center;
           justify-content: space-between;
-          padding: 8px 0;
         }
 
         .rcs-form-group-horizontal .rcs-form-label {
@@ -1371,15 +1386,15 @@ export async function onLoad(ctx) {
               </div>
 
               <div class="rcs-form-row-3col">
-                <div class="rcs-form-group">
+                <div class="rcs-form-group-inline">
                   <label class="rcs-form-label">X</label>
                   <input type="number" class="rcs-input" id="rcs-toolsetter-x" value="0" step="0.001">
                 </div>
-                <div class="rcs-form-group">
+                <div class="rcs-form-group-inline">
                   <label class="rcs-form-label">Y</label>
                   <input type="number" class="rcs-input" id="rcs-toolsetter-y" value="0" step="0.001">
                 </div>
-                <div class="rcs-form-group">
+                <div class="rcs-form-group-inline">
                   <label class="rcs-form-label">Z</label>
                   <input type="number" class="rcs-input" id="rcs-toolsetter-z" value="0" step="0.001">
                 </div>
@@ -1406,11 +1421,11 @@ export async function onLoad(ctx) {
                 </div>
 
                 <div class="rcs-form-row-2col">
-                  <div class="rcs-form-group">
+                  <div class="rcs-form-group-inline">
                     <label class="rcs-form-label">X</label>
                     <input type="number" class="rcs-input" id="rcs-parking-x" value="0" step="0.001">
                   </div>
-                  <div class="rcs-form-group">
+                  <div class="rcs-form-group-inline">
                     <label class="rcs-form-label">Y</label>
                     <input type="number" class="rcs-input" id="rcs-parking-y" value="0" step="0.001">
                   </div>
@@ -1430,15 +1445,15 @@ export async function onLoad(ctx) {
                 </div>
 
                 <div class="rcs-form-row">
-                  <div class="rcs-form-group">
+                  <div class="rcs-form-group-inline">
                     <label class="rcs-form-label">X</label>
                     <input type="number" class="rcs-input" id="rcs-pocket1-x" value="0" step="0.001">
                   </div>
-                  <div class="rcs-form-group">
+                  <div class="rcs-form-group-inline">
                     <label class="rcs-form-label">Y</label>
                     <input type="number" class="rcs-input" id="rcs-pocket1-y" value="0" step="0.001">
                   </div>
-                  <div class="rcs-form-group">
+                  <div class="rcs-form-group-inline">
                     <label class="rcs-form-label">Z</label>
                     <input type="number" class="rcs-input" id="rcs-zengagement" value="-50" step="0.001">
                   </div>
@@ -1456,6 +1471,16 @@ export async function onLoad(ctx) {
                   <div class="rcs-toggle-switch active" id="rcs-wait-for-spindle-toggle">
                     <div class="rcs-toggle-switch-knob"></div>
                   </div>
+                </div>
+
+                <div class="rcs-form-group-horizontal" id="rcs-unload-rpm-row">
+                  <label class="rcs-form-label">Unload RPM</label>
+                  <input type="number" class="rcs-input" id="rcs-unload-rpm" value="1500" min="500" max="3000" step="1">
+                </div>
+
+                <div class="rcs-form-group-horizontal" id="rcs-load-rpm-row">
+                  <label class="rcs-form-label">Load RPM</label>
+                  <input type="number" class="rcs-input" id="rcs-load-rpm" value="1200" min="500" max="3000" step="1">
                 </div>
 
               </div>
@@ -1713,6 +1738,8 @@ export async function onLoad(ctx) {
             getInput('rcs-seek-distance').value = initialConfig.seekDistance || 50;
             getInput('rcs-seek-feedrate').value = initialConfig.seekFeedrate || 100;
             getInput('rcs-number-of-tools').value = initialConfig.numberOfTools || 1;
+            getInput('rcs-unload-rpm').value = initialConfig.unloadRpm || 1500;
+            getInput('rcs-load-rpm').value = initialConfig.loadRpm || 1200;
 
             const autoSwapToggle = document.getElementById('rcs-autoswap-toggle');
             if (autoSwapToggle) {
@@ -1834,6 +1861,8 @@ export async function onLoad(ctx) {
               seekDistance: parseFloat(getInput('rcs-seek-distance').value) || 50,
               seekFeedrate: parseFloat(getInput('rcs-seek-feedrate').value) || 100,
               numberOfTools: parseInt(getInput('rcs-number-of-tools').value) || 1,
+              unloadRpm: Math.min(3000, Math.max(500, parseInt(getInput('rcs-unload-rpm').value) || 1500)),
+              loadRpm: Math.min(3000, Math.max(500, parseInt(getInput('rcs-load-rpm').value) || 1200)),
               autoSwap: autoSwapToggle ? autoSwapToggle.classList.contains('active') : false,
               pauseBeforeUnload: pauseBeforeUnloadToggle ? pauseBeforeUnloadToggle.classList.contains('active') : true,
               waitForSpindle: waitForSpindleToggle ? waitForSpindleToggle.classList.contains('active') : true,
@@ -2006,6 +2035,8 @@ export async function onLoad(ctx) {
           const autoSwapToggle = document.getElementById('rcs-autoswap-toggle');
           const pauseBeforeUnloadRow = document.getElementById('rcs-pause-before-unload-row');
           const waitForSpindleRow = document.getElementById('rcs-wait-for-spindle-row');
+          const unloadRpmRow = document.getElementById('rcs-unload-rpm-row');
+          const loadRpmRow = document.getElementById('rcs-load-rpm-row');
 
           const updateRapidChangeState = () => {
             const isEnabled = autoSwapToggle && autoSwapToggle.classList.contains('active');
@@ -2015,8 +2046,10 @@ export async function onLoad(ctx) {
             const pocket1Y = getInput('rcs-pocket1-y');
             const zEngagement = getInput('rcs-zengagement');
             const grabBtn = getInput('rcs-pocket1-grab');
+            const unloadRpm = getInput('rcs-unload-rpm');
+            const loadRpm = getInput('rcs-load-rpm');
 
-            [pocket1X, pocket1Y, zEngagement, grabBtn].forEach(el => {
+            [pocket1X, pocket1Y, zEngagement, grabBtn, unloadRpm, loadRpm].forEach(el => {
               if (el) el.disabled = !isEnabled;
             });
 
@@ -2035,6 +2068,24 @@ export async function onLoad(ctx) {
                 waitForSpindleRow.classList.remove('disabled');
               } else {
                 waitForSpindleRow.classList.add('disabled');
+              }
+            }
+
+            // Update Unload RPM row
+            if (unloadRpmRow) {
+              if (isEnabled) {
+                unloadRpmRow.classList.remove('disabled');
+              } else {
+                unloadRpmRow.classList.add('disabled');
+              }
+            }
+
+            // Update Load RPM row
+            if (loadRpmRow) {
+              if (isEnabled) {
+                loadRpmRow.classList.remove('disabled');
+              } else {
+                loadRpmRow.classList.add('disabled');
               }
             }
           };
