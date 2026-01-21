@@ -50,7 +50,7 @@ const buildInitialConfig = (raw = {}) => ({
   zEngagement: toFiniteNumber(raw.zEngagement, -50),
   zSafe: toFiniteNumber(raw.zSafe, 0),
   zSpinOff: toFiniteNumber(raw.zSpinOff, 23),
-  zRetreat: toFiniteNumber(raw.zRetreat, 10),
+  zRetreat: toFiniteNumber(raw.zRetreat, 12),
 
   // Tool Change Settings
   unloadRpm: toFiniteNumber(raw.unloadRpm, 1500),
@@ -925,7 +925,7 @@ export async function onLoad(ctx) {
         }
 
         .rcs-content {
-          height: 630px;
+          height: 690px;
           display: flex;
           flex-direction: column;
         }
@@ -939,10 +939,12 @@ export async function onLoad(ctx) {
 
         .rcs-tab-panel {
           display: none;
+          height: 100%;
         }
 
         .rcs-tab-panel.active {
-          display: block;
+          display: flex;
+          flex-direction: column;
         }
 
         .rcs-container {
@@ -977,8 +979,7 @@ export async function onLoad(ctx) {
         .rcs-form-row-single {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 12px;
+          gap: 8px;
         }
 
         .rcs-form-row-single .rcs-form-label {
@@ -990,6 +991,7 @@ export async function onLoad(ctx) {
         .rcs-form-row-single .rcs-select {
           flex: 0 0 auto;
           width: 100px;
+          margin-left: auto;
         }
 
         .rcs-select {
@@ -1106,9 +1108,8 @@ export async function onLoad(ctx) {
         .rcs-form-group-horizontal {
           display: flex;
           flex-direction: row;
-          gap: 12px;
+          gap: 8px;
           align-items: center;
-          justify-content: space-between;
         }
 
         .rcs-form-group-horizontal .rcs-form-label {
@@ -1121,6 +1122,7 @@ export async function onLoad(ctx) {
           width: 100px;
           flex-shrink: 0;
           min-width: 100px;
+          margin-left: auto;
         }
 
         .rcs-form-label {
@@ -1247,8 +1249,12 @@ export async function onLoad(ctx) {
 
         .rcs-toggle-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          gap: 8px;
+        }
+
+        .rcs-toggle-row .rcs-toggle-switch {
+          margin-left: auto;
         }
 
         .rcs-toggle-label {
@@ -1334,6 +1340,7 @@ export async function onLoad(ctx) {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          height: 100%;
         }
 
         .rcs-event-group {
@@ -1344,6 +1351,8 @@ export async function onLoad(ctx) {
           display: flex;
           flex-direction: column;
           gap: 8px;
+          flex: 1;
+          min-height: 0;
         }
 
         .rcs-event-description {
@@ -1353,10 +1362,137 @@ export async function onLoad(ctx) {
         }
 
         .rcs-monaco-container {
-          height: 100px;
+          flex: 1;
+          min-height: 80px;
           border: 1px solid var(--color-border);
           border-radius: var(--radius-small);
           overflow: hidden;
+        }
+
+        /* Tooltip styles */
+        .rcs-tooltip-wrapper {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .rcs-tooltip-trigger {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
+          margin-left: 2px;
+          background: var(--color-accent);
+          color: white;
+          border-radius: 50%;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: help;
+          user-select: none;
+          flex-shrink: 0;
+        }
+
+        .rcs-tooltip-trigger:hover,
+        .rcs-tooltip-trigger:focus {
+          background: var(--color-accent-hover, var(--color-accent));
+          outline: none;
+        }
+
+        .rcs-tooltip-content {
+          position: absolute;
+          top: calc(100% + 12px);
+          left: 50%;
+          transform: translateX(-50%);
+          width: 280px;
+          padding: 12px 14px;
+          background: var(--color-accent);
+          color: white;
+          border-radius: var(--radius-small);
+          font-size: 0.85rem;
+          line-height: 1.5;
+          z-index: 1000;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.2s, visibility 0.2s;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .rcs-tooltip-content::before {
+          content: '';
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 8px solid transparent;
+          border-bottom-color: var(--color-accent);
+        }
+
+        .rcs-tooltip-wrapper:hover .rcs-tooltip-content,
+        .rcs-tooltip-wrapper:focus-within .rcs-tooltip-content,
+        .rcs-tooltip-content.rcs-tooltip-visible {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        /* Tooltip position adjustments for edge cases */
+        .rcs-tooltip-content.rcs-tooltip-left {
+          left: 0;
+          transform: translateX(0);
+        }
+
+        .rcs-tooltip-content.rcs-tooltip-left::before {
+          left: 14px;
+          transform: translateX(0);
+        }
+
+        /* Top placement - use transform for reliable positioning */
+        .rcs-tooltip-above {
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%) translateY(calc(-100% - 12px));
+          width: 280px;
+          padding: 12px 14px;
+          background: var(--color-accent);
+          color: white;
+          border-radius: var(--radius-small);
+          font-size: 0.85rem;
+          line-height: 1.5;
+          z-index: 1000;
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 0.2s, visibility 0.2s;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .rcs-tooltip-above::before {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 8px solid transparent;
+          border-top-color: var(--color-accent);
+        }
+
+        .rcs-tooltip-wrapper:hover .rcs-tooltip-above,
+        .rcs-tooltip-wrapper:focus-within .rcs-tooltip-above,
+        .rcs-tooltip-above.rcs-tooltip-visible {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        .rcs-tooltip-above.rcs-tooltip-right {
+          left: auto;
+          right: 0;
+          transform: translateX(0) translateY(calc(-100% - 12px));
+        }
+
+        .rcs-tooltip-above.rcs-tooltip-right::before {
+          left: auto;
+          right: 14px;
+          transform: translateX(0);
         }
       </style>
 
@@ -1382,6 +1518,10 @@ export async function onLoad(ctx) {
                 <div class="rcs-pocket-header-left">
                   <span class="rcs-pocket-title">Tool Setter</span>
                   <button type="button" class="rcs-button rcs-button-grab" id="rcs-toolsetter-grab">Grab</button>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-content rcs-tooltip-left">Machine coordinates of your Tool Length Setter (TLS) probe. Position the spindle directly above the probe center and use the Grab button to capture coordinates.</div>
+                  </div>
                 </div>
               </div>
 
@@ -1402,11 +1542,19 @@ export async function onLoad(ctx) {
 
               <div class="rcs-form-group-horizontal">
                 <label class="rcs-form-label">Seek Distance (mm)</label>
+                <div class="rcs-tooltip-wrapper">
+                  <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                  <div class="rcs-tooltip-content rcs-tooltip-left">Maximum distance the tool will travel downward while probing for the tool setter. If no contact is made within this distance, the probe fails.</div>
+                </div>
                 <input type="number" class="rcs-input" id="rcs-seek-distance" value="50" step="1" min="1">
               </div>
 
               <div class="rcs-form-group-horizontal">
                 <label class="rcs-form-label">Seek Feedrate (mm/min)</label>
+                <div class="rcs-tooltip-wrapper">
+                  <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                  <div class="rcs-tooltip-content rcs-tooltip-left">Speed at which the tool moves downward during probing. Lower values provide more accurate measurements but take longer.</div>
+                </div>
                 <input type="number" class="rcs-input" id="rcs-seek-feedrate" value="100" step="10" min="1">
               </div>
             </div>
@@ -1417,6 +1565,10 @@ export async function onLoad(ctx) {
                   <div class="rcs-pocket-header-left">
                     <span class="rcs-pocket-title">Manual ToolChange</span>
                     <button type="button" class="rcs-button rcs-button-grab" id="rcs-parking-grab">Grab</button>
+                    <div class="rcs-tooltip-wrapper">
+                      <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                      <div class="rcs-tooltip-content rcs-tooltip-left">Location where the spindle moves for manual tool changes. Position this where you have easy access to change tools by hand.</div>
+                    </div>
                   </div>
                 </div>
 
@@ -1441,6 +1593,10 @@ export async function onLoad(ctx) {
                     </div>
                     <span class="rcs-pocket-title">RapidChangeSolo</span>
                     <button type="button" class="rcs-button rcs-button-grab" id="rcs-pocket1-grab">Grab</button>
+                    <div class="rcs-tooltip-wrapper">
+                      <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                      <div class="rcs-tooltip-content rcs-tooltip-left">Enable this if you have a RapidChangeSolo tool holder system. The spindle will automatically spin during tool swapping to engage/release the tool holder mechanism.</div>
+                    </div>
                   </div>
                 </div>
 
@@ -1461,6 +1617,10 @@ export async function onLoad(ctx) {
 
                 <div class="rcs-toggle-row" id="rcs-pause-before-unload-row">
                   <span class="rcs-toggle-label">Pause before Unload</span>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-content">When enabled, the system will pause and wait for user confirmation before unloading the current tool. Useful for verifying the tool holder is properly seated.</div>
+                  </div>
                   <div class="rcs-toggle-switch active" id="rcs-pause-before-unload-toggle">
                     <div class="rcs-toggle-switch-knob"></div>
                   </div>
@@ -1468,6 +1628,10 @@ export async function onLoad(ctx) {
 
                 <div class="rcs-toggle-row" id="rcs-wait-for-spindle-row">
                   <span class="rcs-toggle-label">Wait for Spindle</span>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-content">When enabled, the system waits for the spindle to reach the target RPM before proceeding with the tool change sequence. Recommended for reliable operation.</div>
+                  </div>
                   <div class="rcs-toggle-switch active" id="rcs-wait-for-spindle-toggle">
                     <div class="rcs-toggle-switch-knob"></div>
                   </div>
@@ -1475,12 +1639,29 @@ export async function onLoad(ctx) {
 
                 <div class="rcs-form-group-horizontal" id="rcs-unload-rpm-row">
                   <label class="rcs-form-label">Unload RPM</label>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-content">Spindle speed (CCW rotation) used when releasing the tool holder. The reverse rotation disengages the RapidChangeSolo locking mechanism.</div>
+                  </div>
                   <input type="number" class="rcs-input" id="rcs-unload-rpm" value="1500" min="500" max="3000" step="1">
                 </div>
 
                 <div class="rcs-form-group-horizontal" id="rcs-load-rpm-row">
                   <label class="rcs-form-label">Load RPM</label>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-above">Spindle speed (CW rotation) used when engaging the tool holder. The forward rotation locks the RapidChangeSolo mechanism.</div>
+                  </div>
                   <input type="number" class="rcs-input" id="rcs-load-rpm" value="1200" min="500" max="3000" step="1">
+                </div>
+
+                <div class="rcs-form-group-horizontal" id="rcs-z-retreat-row">
+                  <label class="rcs-form-label">Retract (mm)</label>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-above">Distance the spindle retracts upward after engaging/disengaging the tool holder. This ensures the tool clears the holder before moving to the next position.</div>
+                  </div>
+                  <input type="number" class="rcs-input" id="rcs-z-retreat" value="12" min="5" max="20" step="1">
                 </div>
 
               </div>
@@ -1523,12 +1704,20 @@ export async function onLoad(ctx) {
 
                 <div class="rcs-form-row-single">
                   <label class="rcs-form-label">Number of Tools</label>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-above rcs-tooltip-right">Maximum number of tools in your tool library. This determines how many tool buttons are displayed on the main interface.</div>
+                  </div>
                   <select class="rcs-select" id="rcs-number-of-tools">
                   </select>
                 </div>
 
                 <div class="rcs-toggle-row">
                   <span class="rcs-toggle-label">Show Command</span>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-above rcs-tooltip-right">When enabled, displays the generated G-code macro command (e.g., o100 call) that you can copy into your post processor or G-code files.</div>
+                  </div>
                   <div class="rcs-toggle-switch" id="rcs-show-macro-command-toggle">
                     <div class="rcs-toggle-switch-knob"></div>
                   </div>
@@ -1536,6 +1725,10 @@ export async function onLoad(ctx) {
 
                 <div class="rcs-toggle-row">
                   <span class="rcs-toggle-label">Perform TLS after first HOME</span>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-above rcs-tooltip-right">When enabled, automatically performs a Tool Length Setter probe cycle after the first homing operation. Ensures accurate tool offset before starting a job.</div>
+                  </div>
                   <div class="rcs-toggle-switch" id="rcs-perform-tls-after-home-toggle">
                     <div class="rcs-toggle-switch-knob"></div>
                   </div>
@@ -1543,6 +1736,10 @@ export async function onLoad(ctx) {
 
                 <div class="rcs-form-row-single">
                   <label class="rcs-form-label">Switch Aux during TLS</label>
+                  <div class="rcs-tooltip-wrapper">
+                    <span class="rcs-tooltip-trigger" tabindex="0">?</span>
+                    <div class="rcs-tooltip-above rcs-tooltip-right">Select an auxiliary output to activate during tool length probing. Useful for controlling dust collection, air blast, or probe activation relays.</div>
+                  </div>
                   <select class="rcs-select" id="rcs-tls-aux-output">
                     <option value="-1">Disabled</option>
                   </select>
@@ -1620,10 +1817,48 @@ export async function onLoad(ctx) {
             });
           });
 
+          // Tooltip touch support - tap to toggle
+          const tooltipWrappers = document.querySelectorAll('.rcs-tooltip-wrapper');
+          let activeTooltip = null;
+
+          const hideAllTooltips = () => {
+            document.querySelectorAll('.rcs-tooltip-content, .rcs-tooltip-above').forEach(t => {
+              t.classList.remove('rcs-tooltip-visible');
+            });
+            activeTooltip = null;
+          };
+
+          tooltipWrappers.forEach(wrapper => {
+            const trigger = wrapper.querySelector('.rcs-tooltip-trigger');
+            const content = wrapper.querySelector('.rcs-tooltip-content') || wrapper.querySelector('.rcs-tooltip-above');
+            if (!trigger || !content) return;
+
+            trigger.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (activeTooltip === content) {
+                content.classList.remove('rcs-tooltip-visible');
+                activeTooltip = null;
+              } else {
+                hideAllTooltips();
+                content.classList.add('rcs-tooltip-visible');
+                activeTooltip = content;
+              }
+            });
+          });
+
+          document.addEventListener('click', (e) => {
+            if (activeTooltip && !e.target.closest('.rcs-tooltip-wrapper')) {
+              hideAllTooltips();
+            }
+          });
+
           // Initialize Monaco editors
+          const isLightTheme = () => document.body.classList.contains('theme-light');
+          const getMonacoTheme = () => isLightTheme() ? 'gcode-light' : 'gcode-dark';
           const monacoOptions = {
             language: 'gcode',
-            theme: 'vs-dark',
+            theme: getMonacoTheme(),
             minimap: { enabled: false },
             lineNumbers: 'on',
             scrollBeyondLastLine: false,
@@ -1656,6 +1891,12 @@ export async function onLoad(ctx) {
                 value: initialConfig.abortEventGcode || ''
               });
             }
+
+            // Watch for theme changes
+            const themeObserver = new MutationObserver(() => {
+              monaco.editor.setTheme(getMonacoTheme());
+            });
+            themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
           }
 
           const getInput = (id) => document.getElementById(id);
@@ -1740,6 +1981,7 @@ export async function onLoad(ctx) {
             getInput('rcs-number-of-tools').value = initialConfig.numberOfTools || 1;
             getInput('rcs-unload-rpm').value = initialConfig.unloadRpm || 1500;
             getInput('rcs-load-rpm').value = initialConfig.loadRpm || 1200;
+            getInput('rcs-z-retreat').value = initialConfig.zRetreat || 12;
 
             const autoSwapToggle = document.getElementById('rcs-autoswap-toggle');
             if (autoSwapToggle) {
@@ -1863,6 +2105,7 @@ export async function onLoad(ctx) {
               numberOfTools: parseInt(getInput('rcs-number-of-tools').value) || 1,
               unloadRpm: Math.min(3000, Math.max(500, parseInt(getInput('rcs-unload-rpm').value) || 1500)),
               loadRpm: Math.min(3000, Math.max(500, parseInt(getInput('rcs-load-rpm').value) || 1200)),
+              zRetreat: Math.min(20, Math.max(5, parseInt(getInput('rcs-z-retreat').value) || 12)),
               autoSwap: autoSwapToggle ? autoSwapToggle.classList.contains('active') : false,
               pauseBeforeUnload: pauseBeforeUnloadToggle ? pauseBeforeUnloadToggle.classList.contains('active') : true,
               waitForSpindle: waitForSpindleToggle ? waitForSpindleToggle.classList.contains('active') : true,
@@ -2037,6 +2280,7 @@ export async function onLoad(ctx) {
           const waitForSpindleRow = document.getElementById('rcs-wait-for-spindle-row');
           const unloadRpmRow = document.getElementById('rcs-unload-rpm-row');
           const loadRpmRow = document.getElementById('rcs-load-rpm-row');
+          const zRetreatRow = document.getElementById('rcs-z-retreat-row');
 
           const updateRapidChangeState = () => {
             const isEnabled = autoSwapToggle && autoSwapToggle.classList.contains('active');
@@ -2048,8 +2292,9 @@ export async function onLoad(ctx) {
             const grabBtn = getInput('rcs-pocket1-grab');
             const unloadRpm = getInput('rcs-unload-rpm');
             const loadRpm = getInput('rcs-load-rpm');
+            const zRetreat = getInput('rcs-z-retreat');
 
-            [pocket1X, pocket1Y, zEngagement, grabBtn, unloadRpm, loadRpm].forEach(el => {
+            [pocket1X, pocket1Y, zEngagement, grabBtn, unloadRpm, loadRpm, zRetreat].forEach(el => {
               if (el) el.disabled = !isEnabled;
             });
 
@@ -2086,6 +2331,15 @@ export async function onLoad(ctx) {
                 loadRpmRow.classList.remove('disabled');
               } else {
                 loadRpmRow.classList.add('disabled');
+              }
+            }
+
+            // Update Z Retreat row
+            if (zRetreatRow) {
+              if (isEnabled) {
+                zRetreatRow.classList.remove('disabled');
+              } else {
+                zRetreatRow.classList.add('disabled');
               }
             }
           };
