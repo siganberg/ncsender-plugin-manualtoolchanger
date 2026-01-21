@@ -1520,7 +1520,7 @@ export async function onLoad(ctx) {
                   <button type="button" class="rcs-button rcs-button-grab" id="rcs-toolsetter-grab">Grab</button>
                   <div class="rcs-tooltip-wrapper">
                     <span class="rcs-tooltip-trigger" tabindex="0">?</span>
-                    <div class="rcs-tooltip-content rcs-tooltip-left">Machine coordinates of your Tool Length Setter (TLS) probe. Position the spindle directly above the probe center and use the Grab button to capture coordinates.</div>
+                    <div class="rcs-tooltip-content rcs-tooltip-left">Machine coordinates of your Tool Length Setter (TLS) probe. Use your longest bit, position the spindle directly above the probe center with the tip 1 to 1.5 inches above the setter, then click Grab to capture coordinates.</div>
                   </div>
                 </div>
               </div>
@@ -1595,7 +1595,7 @@ export async function onLoad(ctx) {
                     <button type="button" class="rcs-button rcs-button-grab" id="rcs-pocket1-grab">Grab</button>
                     <div class="rcs-tooltip-wrapper">
                       <span class="rcs-tooltip-trigger" tabindex="0">?</span>
-                      <div class="rcs-tooltip-content rcs-tooltip-left">Enable this if you have a RapidChangeSolo tool holder system. The spindle will automatically spin during tool swapping to engage/release the tool holder mechanism.</div>
+                      <div class="rcs-tooltip-content rcs-tooltip-left">Enable if using RapidChangeSolo tool holder. Setup: Position spindle over the Solo pocket without rubbing, lower Z until the nut engages the ball bearing inside the pocket, then click Grab. The Grab button automatically adds -5mm to the Z value for proper engagement.</div>
                     </div>
                   </div>
                 </div>
@@ -1619,7 +1619,7 @@ export async function onLoad(ctx) {
                   <span class="rcs-toggle-label">Pause before Unload</span>
                   <div class="rcs-tooltip-wrapper">
                     <span class="rcs-tooltip-trigger" tabindex="0">?</span>
-                    <div class="rcs-tooltip-content">When enabled, the system will pause and wait for user confirmation before unloading the current tool. Useful for verifying the tool holder is properly seated.</div>
+                    <div class="rcs-tooltip-content">When enabled, the system will pause and wait for user confirmation before unloading the current tool. Useful for verifying the pocket is empty before dropping the tool.</div>
                   </div>
                   <div class="rcs-toggle-switch active" id="rcs-pause-before-unload-toggle">
                     <div class="rcs-toggle-switch-knob"></div>
@@ -1641,7 +1641,7 @@ export async function onLoad(ctx) {
                   <label class="rcs-form-label">Unload RPM</label>
                   <div class="rcs-tooltip-wrapper">
                     <span class="rcs-tooltip-trigger" tabindex="0">?</span>
-                    <div class="rcs-tooltip-content">Spindle speed (CCW rotation) used when releasing the tool holder. The reverse rotation disengages the RapidChangeSolo locking mechanism.</div>
+                    <div class="rcs-tooltip-content">Spindle speed (CCW rotation) used when unloading. The reverse rotation unthreads the nut/collet/bit to drop it into the holder pocket.</div>
                   </div>
                   <input type="number" class="rcs-input" id="rcs-unload-rpm" value="1500" min="500" max="3000" step="1">
                 </div>
@@ -1650,7 +1650,7 @@ export async function onLoad(ctx) {
                   <label class="rcs-form-label">Load RPM</label>
                   <div class="rcs-tooltip-wrapper">
                     <span class="rcs-tooltip-trigger" tabindex="0">?</span>
-                    <div class="rcs-tooltip-above">Spindle speed (CW rotation) used when engaging the tool holder. The forward rotation locks the RapidChangeSolo mechanism.</div>
+                    <div class="rcs-tooltip-above">Spindle speed (CW rotation) used when loading. The forward rotation threads the nut/collet/bit to pick it up from the holder pocket.</div>
                   </div>
                   <input type="number" class="rcs-input" id="rcs-load-rpm" value="1200" min="500" max="3000" step="1">
                 </div>
@@ -1659,7 +1659,7 @@ export async function onLoad(ctx) {
                   <label class="rcs-form-label">Retract (mm)</label>
                   <div class="rcs-tooltip-wrapper">
                     <span class="rcs-tooltip-trigger" tabindex="0">?</span>
-                    <div class="rcs-tooltip-above">Distance the spindle retracts upward after engaging/disengaging the tool holder. This ensures the tool clears the holder before moving to the next position.</div>
+                    <div class="rcs-tooltip-above">Distance for tightening/untightening retries. The spindle plunges 3 times while spinning to ensure proper threading or to retry if it doesn't release on the first attempt.</div>
                   </div>
                   <input type="number" class="rcs-input" id="rcs-z-retreat" value="12" min="5" max="20" step="1">
                 </div>
@@ -1706,7 +1706,7 @@ export async function onLoad(ctx) {
                   <label class="rcs-form-label">Number of Tools</label>
                   <div class="rcs-tooltip-wrapper">
                     <span class="rcs-tooltip-trigger" tabindex="0">?</span>
-                    <div class="rcs-tooltip-above rcs-tooltip-right">Maximum number of tools in your tool library. This determines how many tool buttons are displayed on the main interface.</div>
+                    <div class="rcs-tooltip-above rcs-tooltip-right">Virtual magazine size. Determines how many tool buttons are displayed on the main interface.</div>
                   </div>
                   <select class="rcs-select" id="rcs-number-of-tools">
                   </select>
