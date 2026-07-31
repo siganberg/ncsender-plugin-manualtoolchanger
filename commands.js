@@ -159,9 +159,6 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
   const fineProbeFeedrate = settings.seekFeedrate < 75 ? settings.seekFeedrate : 75;
   const legacyProbe = settings.legacyProbe;
 
-  // Extra Z rapid move for shorter tools (z offset is typically negative)
-  const extraZMove = tlsZ !== 0 ? `G91 G0 Z${tlsZ}\n    G90` : '';
-
   // Aux output switching during TLS (if configured)
   const auxOutput = settings.tlsAuxOutput;
   let auxOn = '';
@@ -173,6 +170,23 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
     auxOn = `G4 P0\n    M64 P${auxOutput}\n    G4 P0`;
     auxOff = `G4 P0\n    M65 P${auxOutput}\n    G4 P0`;
   }
+
+  // Safety descent from safe Z down to the toolsetter altitude
+  // (toolSetter.z + the tool library's per-tool Z bias). Instead of
+  // rapiding blind with G0, use G38.3 as a "probe toward" — same fast
+  // motion (grblHAL clamps F99999 to the machine Z max rate $112) but
+  // if the tool contacts the sensor early (misconfigured toolSetter.z,
+  // tool longer than expected, etc.) the machine HALTS at contact
+  // instead of crashing. The follow-up G38.2 seek will then error
+  // with "probe already triggered", surfacing the problem to the
+  // operator. When the target is above safe Z (positive tlsZ), just
+  // do a normal G0 raise — nothing to crash into going up.
+  const approachDelta = (settings.toolSetter.z + tlsZ) - settings.zSafe;
+  const approach = approachDelta < 0
+    ? `G38.3 G91 Z${approachDelta.toFixed(3)} F99999\n    G90`
+    : approachDelta > 0
+      ? `G91 G0 Z${approachDelta.toFixed(3)}\n    G90`
+      : '';
 
   let probeCommand = '';
   if (legacyProbe && toolNumber === PROBE_TOOL_NUMBER) {
@@ -195,8 +209,7 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
   return `
     G53 G0 Z${settings.zSafe}
     G53 G0 X${tlsX} Y${tlsY}
-    G53 G0 Z${settings.toolSetter.z}
-    ${extraZMove}
+    ${approach}
     ${auxOn}
     G43.1 Z0
     ${probeCommand}
