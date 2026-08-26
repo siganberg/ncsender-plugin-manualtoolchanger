@@ -67,6 +67,35 @@ const toFiniteNumber = (value, fallback = 0) => {
   return Number.isFinite(num) ? num : fallback;
 };
 
+// Re-indent a user-authored g-code block so it lines up with the macro
+// it gets spliced into. Blank lines are dropped — an empty setting
+// contributes nothing at all, not a stray newline.
+function indentBlock(text) {
+  if (!text) return '';
+  const lines = String(text).split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return '';
+  return lines.join('\n    ');
+}
+
+function auxOnOff(auxOutput) {
+  if (auxOutput === 'M7' || auxOutput === 'M8') return { on: auxOutput, off: 'M9' };
+  if (typeof auxOutput === 'number' && auxOutput >= 0) {
+    return { on: `M64 P${auxOutput}`, off: `M65 P${auxOutput}` };
+  }
+  return { on: '', off: '' };
+}
+
+// The old "Aux Output during TLS" dropdown is gone — Pre/Post TLS events
+// cover it and more. Configs saved with the dropdown are converted to
+// the equivalent event g-code on first load, so an existing toolsetter
+// that needed an aux pulse keeps working without the operator retyping it.
+function migrateLegacyTlsAux(auxOutput, action) {
+  if (auxOutput === undefined || auxOutput === null || auxOutput === -1) return '';
+  const { on, off } = auxOnOff(auxOutput);
+  const cmd = action === 'on' ? on : off;
+  return cmd ? `G4 P0\n${cmd}\nG4 P0` : '';
+}
+
 const sanitizeCoords = (coords = {}) => ({
   x: toFiniteNumber(coords.x),
   y: toFiniteNumber(coords.y),
@@ -108,11 +137,6 @@ const buildInitialConfig = (raw = {}) => {
     seekDistance: toFiniteNumber(raw.seekDistance, 50),
     seekFeedrate: toFiniteNumber(raw.seekFeedrate, 100),
 
-    // Aux Output Settings (-1 = disabled, 0+ = M64 P{n}, 'M7' or 'M8' for coolant)
-    tlsAuxOutput: raw.tlsAuxOutput === 'M7' || raw.tlsAuxOutput === 'M8'
-      ? raw.tlsAuxOutput
-      : toFiniteNumber(raw.tlsAuxOutput, -1),
-
     // Probe Tool Settings
     addProbe: raw.addProbe ?? false,
     probeLoadGcode: raw.probeLoadGcode ?? '',
@@ -121,9 +145,13 @@ const buildInitialConfig = (raw = {}) => {
     secondSeekDistance: toFiniteNumber(raw.secondSeekDistance, 1),
     secondSeekFeedrate: toFiniteNumber(raw.secondSeekFeedrate, 25),
 
-    // Tool Change Events
+    // Tool Change Events (Pre/Post TLS defaults migrate the legacy
+    // tlsAuxOutput dropdown into equivalent M64/M65 or M7/M8 blocks
+    // on first read — see migrateLegacyTlsAux).
     preToolChangeGcode: raw.preToolChangeGcode ?? '',
     postToolChangeGcode: raw.postToolChangeGcode ?? '',
+    preTlsGcode: raw.preTlsGcode ?? migrateLegacyTlsAux(raw.tlsAuxOutput, 'on'),
+    postTlsGcode: raw.postTlsGcode ?? migrateLegacyTlsAux(raw.tlsAuxOutput, 'off'),
     abortEventGcode: raw.abortEventGcode ?? ''
   };
 };
@@ -159,17 +187,11 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
   const fineProbeFeedrate = settings.seekFeedrate < 75 ? settings.seekFeedrate : 75;
   const legacyProbe = settings.legacyProbe;
 
-  // Aux output switching during TLS (if configured)
-  const auxOutput = settings.tlsAuxOutput;
-  let auxOn = '';
-  let auxOff = '';
-  if (auxOutput === 'M7' || auxOutput === 'M8') {
-    auxOn = `G4 P0\n    ${auxOutput}\n    G4 P0`;
-    auxOff = `G4 P0\n    M9\n    G4 P0`;
-  } else if (typeof auxOutput === 'number' && auxOutput >= 0) {
-    auxOn = `G4 P0\n    M64 P${auxOutput}\n    G4 P0`;
-    auxOff = `G4 P0\n    M65 P${auxOutput}\n    G4 P0`;
-  }
+  // Pre/Post TLS user events (replaces the old "Aux Output during TLS"
+  // dropdown — configs saved with that dropdown are migrated into
+  // these two blocks in buildInitialConfig, so nothing regresses).
+  const preTls  = indentBlock(settings.preTlsGcode);
+  const postTls = indentBlock(settings.postTlsGcode);
 
   // Safety descent from safe Z down to the toolsetter altitude
   // (toolSetter.z + the tool library's per-tool Z bias). Instead of
@@ -210,12 +232,12 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
     G53 G0 Z${settings.zSafe}
     G53 G0 X${tlsX} Y${tlsY}
     ${approach}
-    ${auxOn}
+    ${preTls}
     G43.1 Z0
     ${probeCommand}
     G91 G0 Z5
     G90
-    ${auxOff}
+    ${postTls}
     #<_ofs_idx> = [#5220 * 20 + 5203]
     #<_cur_wcs_z_ofs> = #[#<_ofs_idx>]
     #<_rc_trigger_mach_z> = [#5063 + #<_cur_wcs_z_ofs>]
