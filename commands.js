@@ -582,6 +582,44 @@ function handleHomeCommand(commands, context, settings) {
   commands.splice(homeIndex, 1, ...expandedCommands);
 }
 
+// Returns 'proceed' | 'stopped' | 'pause' — see RapidChangeATC's
+// matching helper for the semantics. Only fires when RapidChangeSolo
+// (autoSwap) is enabled; manual tool swaps don't spin the spindle.
+function confirmSpindleRpmSafety(settings) {
+  if (!settings.autoSwap) return 'proceed';
+  if (typeof pluginContext === 'undefined'
+      || !pluginContext
+      || typeof pluginContext.getFirmwareSetting !== 'function') {
+    return 'proceed';
+  }
+  const minRpm = pluginContext.getFirmwareSetting('31');
+  if (minRpm === null || minRpm === undefined || !isFinite(minRpm)) return 'proceed';
+  const soloRpmFloor = Math.min(settings.loadRpm, settings.unloadRpm);
+  if (minRpm <= soloRpmFloor) return 'proceed';
+
+  if (typeof pluginContext.askGate !== 'function') return 'proceed';
+  const choice = pluginContext.askGate({
+    title: 'Spindle RPM clamp above Solo RPM',
+    message:
+      'Firmware $31 (minimum spindle RPM) is ' + minRpm + '. ' +
+      'RapidChangeSolo engages the collet at ' + settings.loadRpm +
+      ' RPM (load) and ' + settings.unloadRpm + ' RPM (unload).\n\n' +
+      'grblHAL will silently bump those macro RPMs up to ' + minRpm +
+      ', which can destroy the Solo mechanism.\n\n' +
+      'Lower $31 to at most ' + soloRpmFloor + ' before running a tool change.',
+    variant: 'error',
+    buttons: [
+      { value: 'proceed', label: 'Proceed at My Risk',   style: 'danger' },
+      { value: 'cancel',  label: 'Cancel Tool Change',   style: 'secondary', isDefault: true }
+    ]
+  });
+  if (choice === 'proceed') return 'proceed';
+  if (typeof pluginContext.stopJob === 'function') {
+    try { pluginContext.stopJob(); return 'stopped'; } catch (_) { /* fall through */ }
+  }
+  return 'pause';
+}
+
 function handleM6Command(commands, context, settings) {
   const m6Index = commands.findIndex(cmd => {
     if (!cmd.isOriginal) return false;
@@ -597,6 +635,21 @@ function handleM6Command(commands, context, settings) {
   const parsed = parseM6Command(m6Command.command);
 
   if (!parsed?.matched || parsed.toolNumber === null) {
+    return;
+  }
+
+  const safety = confirmSpindleRpmSafety(settings);
+  if (safety === 'stopped') {
+    // Host dispatched feed hold + soft reset — silently drop the M6.
+    commands.splice(m6Index, 1);
+    return;
+  }
+  if (safety === 'pause') {
+    const abortBlock = [
+      { command: '(MSG, PLUGIN_MANUALTOOLCHANGE:ABORTED_$31_ABOVE_SOLO_RPM)', isOriginal: false, displayCommand: m6Command.command.trim() },
+      { command: 'M0', isOriginal: false, displayCommand: null, meta: { silent: true } }
+    ];
+    commands.splice(m6Index, 1, ...abortBlock);
     return;
   }
 

@@ -311,6 +311,37 @@
     background: var(--color-surface-muted);
   }
 
+  /* Safety callout when a firmware setting (e.g. $31) would silently
+     override the plugin's RPM values. Hidden by default; adds .rcs-show
+     to reveal. Uses the app's danger color at a low tint so it reads
+     as a serious note without shouting. */
+  .rcs-warn-banner {
+    display: none;
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: color-mix(in srgb, var(--color-danger, #e74c3c) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger, #e74c3c) 32%, transparent);
+    border-radius: 6px;
+    color: var(--color-text-primary);
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+  .rcs-warn-banner.rcs-show {
+    display: flex;
+  }
+  .rcs-warn-banner svg {
+    color: var(--color-danger, #e74c3c);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .rcs-warn-banner strong { display: block; margin-bottom: 2px; }
+  .rcs-warn-banner code {
+    font-family: inherit;
+    font-weight: 600;
+  }
+
   .rcs-control-group {
     background: color-mix(in srgb, var(--color-surface) 40%, var(--color-surface-muted) 60%);
     border: 1px solid var(--color-border);
@@ -822,6 +853,22 @@
                   <div class="rcs-tooltip-above">Distance for tightening/untightening retries. The spindle plunges 3 times while spinning to ensure proper threading or to retry if it doesn't release on the first attempt.</div>
                 </div>
                 <input type="number" class="rcs-input" id="rcs-z-retreat" value="12" min="5" max="20" step="1">
+              </div>
+
+              <div class="rcs-warn-banner" id="rcs-rpm31-warning" role="alert">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <path d="M12 9v4"/>
+                  <path d="M12 17h.01"/>
+                </svg>
+                <div>
+                  <strong>Firmware <code>$31</code> is higher than your Solo RPMs.</strong>
+                  <code>$31</code> (minimum spindle RPM) is <span id="rcs-rpm31-value">?</span>.
+                  grblHAL silently bumps <code>M3</code>/<code>M4</code> speeds up to this value,
+                  so RapidChangeSolo will spin at <span id="rcs-rpm31-value2">?</span> RPM instead of
+                  your Load/Unload settings — this can destroy the Solo mechanism.
+                  Lower <code>$31</code> to at most <span id="rcs-rpm31-safe">?</span> before running a tool change.
+                </div>
               </div>
 
             </div>
@@ -1473,6 +1520,11 @@
       saveButton.addEventListener('click', async function() {
         if (saveButton.disabled) return;
 
+        // Safety gate: only relevant when RapidChangeSolo (autoSwap)
+        // is on, since manual swaps don't spin the spindle. Banner may
+        // be scrolled out of view, so re-confirm on save.
+        if (!(await confirmRpm31OnSave())) return;
+
         saveButton.disabled = true;
         saveButton.classList.add('rcs-button-busy');
 
@@ -1682,7 +1734,136 @@
           zRetreatRow.classList.add('disabled');
         }
       }
+
+      updateRpm31Warning();
     };
+
+    // Firmware $31 (minimum spindle RPM clamp). grblHAL silently bumps
+    // any M3/M4 speed up to $31, so if $31 exceeds the Solo Load/Unload
+    // RPM the collet spins way too fast and can destroy the mechanism.
+    // Only relevant when RapidChangeSolo (autoSwap) is on — manual
+    // swaps don't spin the spindle.
+    let rpm31MinValue = null;
+    const updateRpm31Warning = () => {
+      const banner = document.getElementById('rcs-rpm31-warning');
+      if (!banner) return;
+      const isEnabled = autoSwapToggle && autoSwapToggle.classList.contains('active');
+      if (!isEnabled || rpm31MinValue === null) { banner.classList.remove('rcs-show'); return; }
+      const loadInput = getInput('rcs-load-rpm');
+      const unloadInput = getInput('rcs-unload-rpm');
+      const loadRpm = loadInput ? parseFloat(loadInput.value) : NaN;
+      const unloadRpm = unloadInput ? parseFloat(unloadInput.value) : NaN;
+      if (!isFinite(loadRpm) || !isFinite(unloadRpm)) { banner.classList.remove('rcs-show'); return; }
+      const floor = Math.min(loadRpm, unloadRpm);
+      if (rpm31MinValue <= floor) { banner.classList.remove('rcs-show'); return; }
+      const valEl  = document.getElementById('rcs-rpm31-value');
+      const val2El = document.getElementById('rcs-rpm31-value2');
+      const safeEl = document.getElementById('rcs-rpm31-safe');
+      if (valEl)  valEl.textContent  = String(rpm31MinValue);
+      if (val2El) val2El.textContent = String(rpm31MinValue);
+      if (safeEl) safeEl.textContent = String(floor);
+      banner.classList.add('rcs-show');
+    };
+    const fetchFirmwareMinRpm = () => {
+      fetch(BASE_URL + '/api/firmware')
+        .then(r => r.ok ? r.json() : null)
+        .then(fw => {
+          const s = fw && fw.settings && fw.settings['31'];
+          const v = s && s.value != null ? parseFloat(s.value) : NaN;
+          rpm31MinValue = isFinite(v) ? v : null;
+          updateRpm31Warning();
+        })
+        .catch(() => { /* offline / disconnected — leave banner hidden */ });
+    };
+    // Push a new $31 to the controller and refresh our local cache so
+    // the banner / on-save gate re-evaluate against the new value.
+    const applyFirmwareMinRpm = async (value) => {
+      await fetch(BASE_URL + '/api/send-command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: '$31=' + value })
+      });
+      await new Promise((r) => setTimeout(r, 250));
+      const r = await fetch(BASE_URL + '/api/firmware');
+      const fw = r.ok ? await r.json() : null;
+      const s = fw && fw.settings && fw.settings['31'];
+      const v = s && s.value != null ? parseFloat(s.value) : NaN;
+      rpm31MinValue = isFinite(v) ? v : rpm31MinValue;
+      updateRpm31Warning();
+    };
+
+    // Confirmation dialog fired from the Save handler when $31 exceeds
+    // the Solo RPMs. Only matters when autoSwap is on. Resolves to
+    // true when it's OK to continue saving. Offers three actions: fix
+    // the firmware in place, save anyway (danger), or cancel.
+    const confirmRpm31OnSave = () => {
+      if (rpm31MinValue === null) return Promise.resolve(true);
+      const isEnabled = autoSwapToggle && autoSwapToggle.classList.contains('active');
+      if (!isEnabled) return Promise.resolve(true);
+      const loadInput = getInput('rcs-load-rpm');
+      const unloadInput = getInput('rcs-unload-rpm');
+      const loadRpm = loadInput ? parseFloat(loadInput.value) : NaN;
+      const unloadRpm = unloadInput ? parseFloat(unloadInput.value) : NaN;
+      if (!isFinite(loadRpm) || !isFinite(unloadRpm)) return Promise.resolve(true);
+      const floor = Math.min(loadRpm, unloadRpm);
+      if (rpm31MinValue <= floor) return Promise.resolve(true);
+
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10000;';
+        const container = document.createElement('div');
+        container.style.cssText = 'background: var(--color-surface); border-radius: var(--radius-medium, 8px); padding: 24px 28px; max-width: 540px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); color: var(--color-text-primary);';
+        const header = document.createElement('div');
+        header.style.cssText = 'display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; color: var(--color-danger, #e74c3c);';
+        header.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>Firmware $31 above Solo RPM</span>';
+        const body = document.createElement('div');
+        body.style.cssText = 'font-size: 0.95rem; line-height: 1.55; margin-bottom: 20px;';
+        body.innerHTML =
+          '<code>$31</code> (minimum spindle RPM) is <strong>' + rpm31MinValue + '</strong>. ' +
+          'RapidChangeSolo engages at <strong>' + loadRpm + '</strong> RPM (load) and <strong>' + unloadRpm + '</strong> RPM (unload), ' +
+          'but grblHAL silently bumps those speeds up to <strong>' + rpm31MinValue + '</strong> — this can destroy the Solo mechanism.<br><br>' +
+          'You can set <code>$31</code> to <strong>' + floor + '</strong> now, save anyway at your own risk, or cancel and fix it manually.';
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;';
+        const fixBtn = document.createElement('button');
+        fixBtn.type = 'button';
+        fixBtn.textContent = 'Set $31 = ' + floor;
+        fixBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: var(--radius-small, 6px); font-weight: 600; font-size: 0.95rem; cursor: pointer; background: var(--color-accent, #4a90e2); color: #fff;';
+        const proceedBtn = document.createElement('button');
+        proceedBtn.type = 'button';
+        proceedBtn.textContent = 'Save Anyway';
+        proceedBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: var(--radius-small, 6px); font-weight: 600; font-size: 0.95rem; cursor: pointer; background: var(--color-danger, #e74c3c); color: #fff;';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: var(--radius-small, 6px); font-weight: 600; font-size: 0.95rem; cursor: pointer; background: var(--color-surface-muted); color: var(--color-text-primary);';
+        let closed = false;
+        const close = (v) => { if (closed) return; closed = true; document.body.removeChild(overlay); resolve(v); };
+        fixBtn.onclick = async () => {
+          fixBtn.disabled = true; proceedBtn.disabled = true; cancelBtn.disabled = true;
+          fixBtn.textContent = 'Setting $31…';
+          try { await applyFirmwareMinRpm(floor); close(true); }
+          catch { close(false); }
+        };
+        proceedBtn.onclick = () => close(true);
+        cancelBtn.onclick  = () => close(false);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+        actions.appendChild(fixBtn);
+        actions.appendChild(proceedBtn);
+        actions.appendChild(cancelBtn);
+        container.appendChild(header);
+        container.appendChild(body);
+        container.appendChild(actions);
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
+        setTimeout(() => fixBtn.focus(), 0);
+      });
+    };
+    fetchFirmwareMinRpm();
+    ['rcs-load-rpm', 'rcs-unload-rpm'].forEach(id => {
+      const el = getInput(id);
+      if (el) el.addEventListener('input', updateRpm31Warning);
+    });
 
     if (autoSwapToggle) {
       autoSwapToggle.addEventListener('click', function() {
