@@ -211,15 +211,15 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
       : '';
 
   let probeCommand = '';
-  if (legacyProbe && toolNumber === PROBE_TOOL_NUMBER) {
+  if (legacyProbe) {
     const secondSeekDistance = settings.secondSeekDistance || 1;
     const secondSeekFeedrate = settings.secondSeekFeedrate || 25;
    
     probeCommand = `
     G38.2 G91 Z-${settings.seekDistance} F${settings.seekFeedrate}
-    G4 P0.2
+    G4 P0.5
     G0 G91 Z${secondSeekDistance}
-    G4 P0.2
+    G4 P0.5
     G38.2 G91 Z-${secondSeekDistance} F${secondSeekFeedrate}`
   } else {
     probeCommand = `
