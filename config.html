@@ -1126,6 +1126,10 @@
               <label for="rcs-second-seek-feedrate">Second Seek Feedrate (mm/min)</label>
               <input type="number" class="rc-input" id="rcs-second-seek-feedrate" value="25" step="5" min="5">
             </div>
+            <div class="rc-field" id="rcs-second-probe-delay-row">
+              <label for="rcs-second-probe-delay">Second Probe Delay (sec)</label>
+              <input type="number" class="rc-input" id="rcs-second-probe-delay" value="0.5" step="0.1" min="0" max="5">
+            </div>
           </div>
         </div>
 
@@ -1485,6 +1489,7 @@
       getInput('rcs-z-retreat').value = initialConfig.zRetreat || 12;
       getInput('rcs-second-seek-distance').value = initialConfig.secondSeekDistance || 1;
       getInput('rcs-second-seek-feedrate').value = initialConfig.secondSeekFeedrate || 25;
+      getInput('rcs-second-probe-delay').value = initialConfig.secondProbeDelay ?? 0.5;
 
       const setClassToggle = (id, on) => {
         const el = document.getElementById(id);
@@ -1504,11 +1509,13 @@
       const legacyProbeToggle = document.getElementById('rcs-legacy-probe');
       const secondSeekDistanceRow = document.getElementById('rcs-second-seek-distance-row');
       const secondSeekFeedrateRow = document.getElementById('rcs-second-seek-feedrate-row');
+      const secondProbeDelayRow = document.getElementById('rcs-second-probe-delay-row');
       const probeGcodeFields = document.getElementById('rcs-probe-gcode-fields');
       const loadEditorContainer = document.getElementById('rcs-probe-load-gcode-editor');
       const unloadEditorContainer = document.getElementById('rcs-probe-unload-gcode-editor');
       const secondSeekDistance = getInput('rcs-second-seek-distance');
       const secondSeekFeedrate = getInput('rcs-second-seek-feedrate');
+      const secondProbeDelay = getInput('rcs-second-probe-delay');
 
       if (!addProbeToggle || !probeGcodeFields) return;
 
@@ -1529,11 +1536,10 @@
         if (probeUnloadEditor) probeUnloadEditor.updateOptions({ readOnly: true });
       }
 
-      if (secondSeekDistanceRow && secondSeekFeedrateRow) {
-        secondSeekDistanceRow.style.opacity = isLegacy ? '' : '0.4';
-        secondSeekFeedrateRow.style.opacity = isLegacy ? '' : '0.4';
-      }
-      [secondSeekDistance, secondSeekFeedrate].forEach(el => {
+      [secondSeekDistanceRow, secondSeekFeedrateRow, secondProbeDelayRow].forEach(el => {
+        if (el) el.style.opacity = isLegacy ? '' : '0.4';
+      });
+      [secondSeekDistance, secondSeekFeedrate, secondProbeDelay].forEach(el => {
         if (el) el.disabled = !isLegacy;
       });
     };
@@ -1581,6 +1587,7 @@
       const performTlsAfterHomeToggle = document.getElementById('rcs-perform-tls-after-home-toggle');
       const addProbeToggle = document.getElementById('rcs-add-probe');
       const legacyProbeToggle = document.getElementById('rcs-legacy-probe');
+      const secondProbeDelayValue = parseFloat(getInput('rcs-second-probe-delay').value);
 
       return {
         pocket1: {
@@ -1614,6 +1621,7 @@
         legacyProbe: legacyProbeToggle ? legacyProbeToggle.classList.contains('active') : false,
         secondSeekDistance: parseFloat(getInput('rcs-second-seek-distance').value) || 1,
         secondSeekFeedrate: parseFloat(getInput('rcs-second-seek-feedrate').value) || 25,
+        secondProbeDelay: Number.isFinite(secondProbeDelayValue) ? Math.min(5, Math.max(0, secondProbeDelayValue)) : 0.5,
         preToolChangeGcode: preToolChangeEditor ? preToolChangeEditor.getValue() : '',
         postToolChangeGcode: postToolChangeEditor ? postToolChangeEditor.getValue() : '',
         preTlsGcode: preTlsEditor ? preTlsEditor.getValue() : '',
