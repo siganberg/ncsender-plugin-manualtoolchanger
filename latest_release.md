@@ -1,4 +1,4 @@
 ## What's Changed
 
 ### 🐛 Bug Fixes
-- Tools that aren't assigned to a slot now use their own offsets
+- Fixed an issue where G-code sent during a stop event could leak modal state into the running job
