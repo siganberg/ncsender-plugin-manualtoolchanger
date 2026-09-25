@@ -1211,12 +1211,12 @@
       <div class="rc-panel">
         <div class="rc-card rc-events-card">
           <h3 class="rc-card-title">Pre Tool Change</h3>
-          <p class="rc-card-help">G-code executed at the very start of the tool change sequence, before any other operations.</p>
+          <p class="rc-card-help">G-code executed at the very start of the tool change sequence, before any other operations. Runs in the units the program is using (<code>G20</code>/<code>G21</code>), not always millimetres — so put an explicit <code>G20</code> or <code>G21</code> in the snippet if it contains coordinates. Units and distance mode are restored afterwards, so anything modal you set here cannot leak into the rest of the job.</p>
           <div id="rcs-pre-tool-change-editor" class="rc-monaco-editor"></div>
         </div>
         <div class="rc-card rc-events-card">
           <h3 class="rc-card-title">Post Tool Change</h3>
-          <p class="rc-card-help">G-code executed at the very end of the tool change sequence, after all operations complete.</p>
+          <p class="rc-card-help">G-code executed at the very end of the tool change sequence, after all operations complete. Runs in the units the program is using (<code>G20</code>/<code>G21</code>), not always millimetres — so put an explicit <code>G20</code> or <code>G21</code> in the snippet if it contains coordinates. Units and distance mode are restored afterwards, so anything modal you set here cannot leak into the rest of the job.</p>
           <div id="rcs-post-tool-change-editor" class="rc-monaco-editor"></div>
         </div>
         <div class="rc-card rc-events-card">
