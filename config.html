@@ -944,14 +944,6 @@
           </div>
         </div>
 
-        <div class="rc-card">
-          <h3 class="rc-card-title">Tool Count</h3>
-          <div class="rc-field-inline">
-            <label for="rcs-number-of-tools">Number of Tools</label>
-            <select class="rc-select" id="rcs-number-of-tools"></select>
-          </div>
-          <p class="rc-card-help">Virtual magazine size. Determines how many tool buttons show on the main interface.</p>
-        </div>
       </div>
 
       <footer class="rc-panel-footer">
@@ -1531,7 +1523,6 @@
       getInput('rcs-zengagement').value = formatCoordinate(initialConfig.zEngagement || -50);
       getInput('rcs-seek-distance').value = formatCoordinate(initialConfig.seekDistance || 50);
       getInput('rcs-seek-feedrate').value = formatCoordinate(initialConfig.seekFeedrate || 100);
-      getInput('rcs-number-of-tools').value = initialConfig.numberOfTools || 1;
       getInput('rcs-unload-rpm').value = initialConfig.unloadRpm || 1500;
       getInput('rcs-load-rpm').value = initialConfig.loadRpm || 1200;
       getInput('rcs-z-retreat').value = formatCoordinate(initialConfig.zRetreat || 12);
@@ -1651,7 +1642,6 @@
         zEngagement: readMetric('rcs-zengagement', -50),
         seekDistance: readMetric('rcs-seek-distance', 50),
         seekFeedrate: readMetric('rcs-seek-feedrate', 100),
-        numberOfTools: parseInt(getInput('rcs-number-of-tools').value) || 1,
         unloadRpm: Math.min(3000, Math.max(500, parseInt(getInput('rcs-unload-rpm').value) || 1500)),
         loadRpm: Math.min(3000, Math.max(500, parseInt(getInput('rcs-load-rpm').value) || 1200)),
         // Clamp AFTER converting — the 5-20 range is in mm, and clamping an
@@ -1700,7 +1690,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tool: {
-            count: payload.numberOfTools || 1,
+            count: 0,
             source: 'com.ncsender.manualtoolchange',
             manual: true,
             tls: true,
@@ -2034,17 +2024,6 @@
 
     // ---------- Startup ----------
     window.addEventListener('message', handleServerStateUpdate);
-
-    // Populate number of tools dropdown (1-98)
-    const numberOfToolsSelect = getInput('rcs-number-of-tools');
-    if (numberOfToolsSelect) {
-      for (let i = 1; i <= 98; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i;
-        numberOfToolsSelect.appendChild(option);
-      }
-    }
 
     registerButton(POCKET_PREFIX, 'rcs-pocket1-grab');
     registerButton(TOOLSETTER_PREFIX, 'rcs-toolsetter-grab');

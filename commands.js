@@ -111,7 +111,6 @@ const buildInitialConfig = (raw = {}) => {
     parking: sanitizeCoords(raw.parking),
 
     // Tool Settings
-    numberOfTools: toFiniteNumber(raw.numberOfTools, 1),
 
     // UI Toggle Settings
     autoSwap: raw.autoSwap === true,
@@ -161,8 +160,9 @@ const buildInitialConfig = (raw = {}) => {
 // uses — so a tool that isn't in any slot still gets its own offsets rather
 // than silently getting none. Offsets belong to the tool, never the slot.
 function findTool(toolNumber, tools) {
-  return tools.find((t) => t.toolNumber === toolNumber)
-    || tools.find((t) => t.toolId === toolNumber);
+  // A T number is the Tool ID; a slot is only a fallback.
+  return tools.find((t) => t.toolId === toolNumber)
+    || tools.find((t) => t.toolNumber === toolNumber);
 }
 
 function getToolOffsets(toolNumber, tools) {
@@ -294,8 +294,12 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
   `.trim();
 }
 
-function isManualTool(toolNumber, settings) {
-  return toolNumber > settings.numberOfTools;
+// Tool-id concept: there is no virtual magazine any more (the buttons come
+// from the Tool Library), so every tool is treated alike: RapidChange Solo
+// when Auto Swap is on, a hand swap when it's off. The probe is never spun
+// on or off: it is always swapped by hand.
+function isManualTool(toolNumber, _settings) {
+  return toolNumber === PROBE_TOOL_NUMBER;
 }
 
 function createToolUnload(settings, currentTool, targetTool) {
