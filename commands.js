@@ -143,7 +143,7 @@ const buildInitialConfig = (raw = {}) => {
     legacyProbe: raw.legacyProbe ?? false,
     secondSeekDistance: toFiniteNumber(raw.secondSeekDistance, 1),
     secondSeekFeedrate: toFiniteNumber(raw.secondSeekFeedrate, 25),
-    secondProbeDelay: Math.min(5, Math.max(0, toFiniteNumber(raw.secondProbeDelay, 0.5))),
+    secondProbeDelay: Math.min(5, Math.max(0, toFiniteNumber(raw.secondProbeDelay, 0.2))),
 
     // Tool Change Events (Pre/Post TLS defaults migrate the legacy
     // tlsAuxOutput dropdown into equivalent M64/M65 or M7/M8 blocks
@@ -251,7 +251,7 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
   if (legacyProbe) {
     const secondSeekDistance = settings.secondSeekDistance || 1;
     const secondSeekFeedrate = settings.secondSeekFeedrate || 25;
-    const secondProbeDelay = settings.secondProbeDelay ?? 0.5;
+    const secondProbeDelay = settings.secondProbeDelay ?? 0.2;
    
     probeCommand = `
     G38.2 G91 Z-${settings.seekDistance} F${settings.seekFeedrate}

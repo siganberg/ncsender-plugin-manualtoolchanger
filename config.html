@@ -1141,7 +1141,7 @@
             </div>
             <div class="rc-field" id="rcs-second-probe-delay-row">
               <label for="rcs-second-probe-delay">Second Probe Delay (sec)</label>
-              <input type="number" class="rc-input" id="rcs-second-probe-delay" value="0.5" step="0.1" min="0" max="5">
+              <input type="number" class="rc-input" id="rcs-second-probe-delay" value="0.2" step="0.1" min="0" max="5">
             </div>
           </div>
         </div>
@@ -1541,7 +1541,7 @@
       getInput('rcs-z-retreat').value = formatCoordinate(initialConfig.zRetreat || 12);
       getInput('rcs-second-seek-distance').value = formatCoordinate(initialConfig.secondSeekDistance || 1);
       getInput('rcs-second-seek-feedrate').value = formatCoordinate(initialConfig.secondSeekFeedrate || 25);
-      getInput('rcs-second-probe-delay').value = initialConfig.secondProbeDelay ?? 0.5;
+      getInput('rcs-second-probe-delay').value = initialConfig.secondProbeDelay ?? 0.2;
 
       const setClassToggle = (id, on) => {
         const el = document.getElementById(id);
@@ -1674,7 +1674,7 @@
         legacyProbe: legacyProbeToggle ? legacyProbeToggle.classList.contains('active') : false,
         secondSeekDistance: readMetric('rcs-second-seek-distance', 1),
         secondSeekFeedrate: readMetric('rcs-second-seek-feedrate', 25),
-        secondProbeDelay: Number.isFinite(secondProbeDelayValue) ? Math.min(5, Math.max(0, secondProbeDelayValue)) : 0.5,
+        secondProbeDelay: Number.isFinite(secondProbeDelayValue) ? Math.min(5, Math.max(0, secondProbeDelayValue)) : 0.2,
         preToolChangeGcode: preToolChangeEditor ? preToolChangeEditor.getValue() : '',
         postToolChangeGcode: postToolChangeEditor ? postToolChangeEditor.getValue() : '',
         preTlsGcode: preTlsEditor ? preTlsEditor.getValue() : '',

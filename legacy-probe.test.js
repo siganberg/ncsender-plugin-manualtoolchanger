@@ -37,7 +37,7 @@ function assertLegacyTouch(lines, delay) {
 
 for (const tool of [1, 99]) {
   test(`$TLS uses two legacy touches for T${tool}`, () => {
-    assertLegacyTouch(run('$TLS', tool), 0.5);
+    assertLegacyTouch(run('$TLS', tool), 0.2);
   });
 }
 
@@ -57,7 +57,7 @@ test('a pending Z0 uses legacy probing for both reference and new tool', () => {
 });
 
 test('legacy delay accepts zero and clamps invalid or out-of-range settings', () => {
-  for (const [value, expected] of [[0, 0], [-1, 0], [8, 5], ['invalid', 0.5]]) {
+  for (const [value, expected] of [[0, 0], [-1, 0], [8, 5], ['invalid', 0.2]]) {
     assertLegacyTouch(run('$TLS', 1, { secondProbeDelay: value }), expected);
   }
 });
