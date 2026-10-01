@@ -1,8 +1,7 @@
-## Beta: tools by Tool ID
+## What's Changed
 
-Needs ncSender Pro 2.0.241-beta.1 or newer (beta channel).
+### ✨ New Features
+- The T number in a tool change command is now treated as the Tool ID, and the Number of Tools setting has been removed
 
-- Number of Tools is gone: your tool buttons now come from the Tool Library.
-- Every tool is handled the same way: RapidChange Solo when Auto Swap is on, a hand swap when it is off. The probe is always swapped by hand.
-- A tool number (T) is looked up in the library by its Tool ID.
-- Includes everything in 0.1.46: legacy tool probing applies to every tool, with a configurable delay between touches (default 0.2 s).
+### 🔧 Improvements
+- Legacy probing is now available for all tools
