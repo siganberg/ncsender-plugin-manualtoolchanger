@@ -1,4 +1,7 @@
 ## What's Changed
 
+### 🐛 Bug Fixes
+- Fixed legacy tool length sensor (TLS) probing
+
 ### 🔧 Improvements
-- Post Tool Change now runs before the machine goes back to where the tool change started.
+- Legacy TLS probing can now be configured, and the probe delay still defaults to 0.2 seconds
