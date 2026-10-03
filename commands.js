@@ -111,6 +111,9 @@ const buildInitialConfig = (raw = {}) => {
     parking: sanitizeCoords(raw.parking),
 
     // Tool Settings
+    // RapidChangeSolo magazine size: tools in slots 1..numberOfTools go
+    // through the Solo; anything else is swapped by hand (see isManualTool).
+    numberOfTools: Math.max(1, Math.round(toFiniteNumber(raw.numberOfTools, 1))),
 
     // UI Toggle Settings
     autoSwap: raw.autoSwap === true,
@@ -296,16 +299,21 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
   `.trim();
 }
 
-// Tool-id concept: there is no virtual magazine any more (the buttons come
-// from the Tool Library), so every tool is treated alike: RapidChange Solo
-// when Auto Swap is on, a hand swap when it's off. The probe is never spun
-// on or off: it is always swapped by hand.
-function isManualTool(toolNumber, _settings) {
-  return toolNumber === PROBE_TOOL_NUMBER;
+// With RapidChangeSolo (Auto Swap) a tool goes through the Solo only when it
+// sits in one of its Magazine Size slots in the Tool Library (with the Tool
+// Library off, Slot N simply holds Tool N). Anything else is swapped by hand:
+// a tool outside the magazine, one the library doesn't know, and the probe,
+// which is never spun on or off. A T number is the Tool ID, so the slot comes
+// from the library, never from the number itself.
+function isManualTool(toolNumber, settings, tools) {
+  if (toolNumber === PROBE_TOOL_NUMBER) return true;
+  const tool = (Array.isArray(tools) ? tools : []).find((t) => t.toolId === toolNumber);
+  const slot = tool && Number.isInteger(tool.toolNumber) ? tool.toolNumber : 0;
+  return !(slot >= 1 && slot <= settings.numberOfTools);
 }
 
-function createToolUnload(settings, currentTool, targetTool) {
-  const useRCS = settings.autoSwap && !isManualTool(currentTool, settings);
+function createToolUnload(settings, currentTool, targetTool, tools) {
+  const useRCS = settings.autoSwap && !isManualTool(currentTool, settings, tools);
   const messageCode = useRCS ? `PLUGIN_MANUALTOOLCHANGE:UNLOAD_MESSAGE_${currentTool}` : `PLUGIN_MANUALTOOLCHANGE:UNLOAD_MESSAGE_MANUAL_${currentTool}`;
   const needsPause = settings.pauseBeforeUnload;
   const confirmationLines = needsPause ? `
@@ -356,9 +364,9 @@ function createToolUnload(settings, currentTool, targetTool) {
   }
 }
 
-function createToolLoad(settings, toolNumber, hasUnload, currentTool) {
-  const wasManualUnload = hasUnload && isManualTool(currentTool, settings);
-  const useRCS = settings.autoSwap && !isManualTool(toolNumber, settings);
+function createToolLoad(settings, toolNumber, hasUnload, currentTool, tools) {
+  const wasManualUnload = hasUnload && isManualTool(currentTool, settings, tools);
+  const useRCS = settings.autoSwap && !isManualTool(toolNumber, settings, tools);
   const messageCode = useRCS
     ? (wasManualUnload ? `PLUGIN_MANUALTOOLCHANGE:LOAD_AFTER_MANUAL_MESSAGE_${toolNumber}` : `PLUGIN_MANUALTOOLCHANGE:LOAD_MESSAGE_${toolNumber}`)
     : (wasManualUnload ? `PLUGIN_MANUALTOOLCHANGE:SWAP_MESSAGE_MANUAL_${toolNumber}` : `PLUGIN_MANUALTOOLCHANGE:LOAD_MESSAGE_MANUAL_${toolNumber}`);
@@ -404,7 +412,7 @@ function createToolLoad(settings, toolNumber, hasUnload, currentTool) {
   }
 }
 
-function buildUnloadTool(settings, currentTool, targetTool) {
+function buildUnloadTool(settings, currentTool, targetTool, tools) {
   if (currentTool === 0) {
     return '';
   }
@@ -434,11 +442,11 @@ function buildUnloadTool(settings, currentTool, targetTool) {
 
   return `
     (Unload current tool T${currentTool})
-    ${createToolUnload(settings, currentTool, targetTool)}
+    ${createToolUnload(settings, currentTool, targetTool, tools)}
   `.trim();
 }
 
-function buildLoadTool(settings, toolNumber, tlsRoutine, hasUnload, currentTool) {
+function buildLoadTool(settings, toolNumber, tlsRoutine, hasUnload, currentTool, tools) {
   if (toolNumber === 0) {
     return '';
   }
@@ -470,7 +478,7 @@ function buildLoadTool(settings, toolNumber, tlsRoutine, hasUnload, currentTool)
 
   return `
     (Load new tool T${toolNumber})
-    ${createToolLoad(settings, toolNumber, hasUnload, currentTool)}
+    ${createToolLoad(settings, toolNumber, hasUnload, currentTool, tools)}
     ${tlsRoutine}
   `.trim();
 }
@@ -513,6 +521,7 @@ function modalSafe(snippet, tag) {
 // options.keepZero      — Z0 was set with the tool in the spindle before any
 //                         reference existed; carry it over (see zeroKeepPlan).
 // options.currentOffsets — tool library offsets of the tool in the spindle.
+// options.tools          — the Tool Library (decides Solo vs hand swap).
 // options.returnTo       — machine XY to go back to at safe Z once the change
 //                         is done, so the job's spindle start happens where
 //                         the job left off rather than above the tool setter.
@@ -537,8 +546,8 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
     : '';
   const hasUnload = currentTool !== 0;
 
-  const unloadSection = buildUnloadTool(settings, currentTool, toolNumber);
-  const loadSection = buildLoadTool(settings, toolNumber, tlsRoutine, hasUnload, currentTool);
+  const unloadSection = buildUnloadTool(settings, currentTool, toolNumber, options.tools);
+  const loadSection = buildLoadTool(settings, toolNumber, tlsRoutine, hasUnload, currentTool, options.tools);
 
   const preToolChangeCmd = settings.preToolChangeGcode?.trim() || '';
   const postToolChangeCmd = settings.postToolChangeGcode?.trim() || '';
@@ -755,6 +764,7 @@ function handleM6Command(commands, context, settings) {
   const toolChangeProgram = buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets, {
     keepZero: zeroKeepPlan(context, currentTool).keep,
     currentOffsets: getToolOffsets(currentTool, context.tools),
+    tools: context.tools,
     returnTo: mpos && typeof mpos.x === 'number' && typeof mpos.y === 'number' ? { x: mpos.x, y: mpos.y } : null,
   });
   const showMacroCommand = settings.showMacroCommand ?? false;

@@ -998,6 +998,15 @@
           </div>
         </div>
 
+        <!-- Solo magazine size -->
+        <div class="rc-card" id="rcs-solo-magazine-card">
+          <div class="rc-field-inline">
+            <label for="rcs-number-of-tools">Magazine Size</label>
+            <select class="rc-select" id="rcs-number-of-tools"></select>
+          </div>
+          <p class="rc-card-help">How many tools the Solo handles. They show as slot buttons; assign a tool to each slot in the Tool Library. A tool in a slot is changed by the Solo; any other tool, such as a 3D probe, is swapped by hand.</p>
+        </div>
+
         <!-- Solo pocket position -->
         <div class="rc-card" id="rcs-solo-pocket-card">
           <h3 class="rc-card-title">Solo Pocket Position</h3>
@@ -1539,6 +1548,16 @@
         if (el) el.classList.toggle('active', !!on);
       };
       setClassToggle('rcs-autoswap-toggle', initialConfig.autoSwap);
+      const magazineSelect = getInput('rcs-number-of-tools');
+      if (magazineSelect) {
+        for (let i = 1; i <= 98; i++) {
+          const option = document.createElement('option');
+          option.value = i;
+          option.textContent = i;
+          magazineSelect.appendChild(option);
+        }
+        magazineSelect.value = String(initialConfig.numberOfTools || 1);
+      }
       setClassToggle('rcs-pause-before-unload-toggle', initialConfig.pauseBeforeUnload);
       setClassToggle('rcs-wait-for-spindle-toggle', initialConfig.waitForSpindle);
       setClassToggle('rcs-show-macro-command-toggle', initialConfig.showMacroCommand);
@@ -1655,6 +1674,7 @@
         // inch value against it would floor 0.47 in (12 mm) up to 5 in.
         zRetreat: Math.min(20, Math.max(5, readMetric('rcs-z-retreat', 12))),
         autoSwap: autoSwapToggle ? autoSwapToggle.classList.contains('active') : false,
+        numberOfTools: Math.min(98, Math.max(1, parseInt(getInput('rcs-number-of-tools')?.value) || 1)),
         pauseBeforeUnload: pauseBeforeUnloadToggle ? pauseBeforeUnloadToggle.classList.contains('active') : true,
         waitForSpindle: waitForSpindleToggle ? waitForSpindleToggle.classList.contains('active') : true,
         showMacroCommand: showMacroCommandToggle ? showMacroCommandToggle.classList.contains('active') : false,
@@ -1698,7 +1718,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tool: {
-            count: 0,
+            // Slots only with the Solo: its Magazine Size. Without it every
+            // tool is a hand swap and there are no slots.
+            count: payload.autoSwap ? payload.numberOfTools : 0,
             source: 'com.ncsender.manualtoolchange',
             manual: true,
             tls: true,
@@ -1816,6 +1838,7 @@
     // the safety warning banner + master toggle stay live.
     const autoSwapToggle = document.getElementById('rcs-autoswap-toggle');
     const soloPocketCard = document.getElementById('rcs-solo-pocket-card');
+    const soloMagazineCard = document.getElementById('rcs-solo-magazine-card');
     const soloMotionCard = document.getElementById('rcs-solo-motion-card');
     const pauseBeforeUnloadRow = document.getElementById('rcs-pause-before-unload-row');
     const waitForSpindleRow = document.getElementById('rcs-wait-for-spindle-row');
@@ -1823,12 +1846,13 @@
 
     const updateRapidChangeState = () => {
       const isEnabled = autoSwapToggle && autoSwapToggle.classList.contains('active');
-      ['rcs-pocket1-x','rcs-pocket1-y','rcs-zengagement','rcs-pocket1-grab',
+      ['rcs-number-of-tools','rcs-pocket1-x','rcs-pocket1-y','rcs-zengagement','rcs-pocket1-grab',
        'rcs-unload-rpm','rcs-load-rpm','rcs-z-retreat'].forEach(id => {
         const el = getInput(id);
         if (el) el.disabled = !isEnabled;
       });
       if (soloPocketCard) soloPocketCard.classList.toggle('mtc-dim', !isEnabled);
+      if (soloMagazineCard) soloMagazineCard.classList.toggle('mtc-dim', !isEnabled);
       if (soloMotionCard) soloMotionCard.classList.toggle('mtc-dim', !isEnabled);
       if (pauseBeforeUnloadRow) pauseBeforeUnloadRow.classList.toggle('disabled', !isEnabled);
       if (waitForSpindleRow) waitForSpindleRow.classList.toggle('disabled', !isEnabled);
