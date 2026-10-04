@@ -1,4 +1,4 @@
 ## What's Changed
 
-### ✨ New Features
-- The Magazine Size setting is back for Solo. Any tool outside the magazine size is now swapped by hand.
+### 🐛 Bug Fixes
+- Fixed tool changes on FluidNC stopping at M51, so they now run through to the end
