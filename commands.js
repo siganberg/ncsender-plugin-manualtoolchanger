@@ -526,6 +526,10 @@ function modalSafe(snippet, tag) {
 //                         is done, so the job's spindle start happens where
 //                         the job left off rather than above the tool setter.
 function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets = { x: 0, y: 0 }, options = {}) {
+  // Override control (M51) is grblHAL-only: FluidNC rejects the line, and a
+  // rejected line stops the tool change. The app reports what the controller
+  // supports; an older app doesn't, so assume grblHAL.
+  const ovr = options.overrideControl !== false;
   const keepZero = !!options.keepZero;
   // Measuring the tool that set Z0 first only matters when a new tool will
   // be measured after it; for an unload-only change, fix the reference now.
@@ -570,9 +574,9 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
     (Start of Manual ToolChanger Sequence)
     ${modalSafe(preToolChangeCmd, 'pre')}
     #<return_units> = [20 + #<_metric>]
-    #<return_spov> = #<_speed_override>
+    ${ovr ? '#<return_spov> = #<_speed_override>' : ''}
     G21
-    M51 P0
+    ${ovr ? 'M51 P0' : ''}
     M5
     ${zeroKeepSection}
     ${unloadSection}
@@ -580,7 +584,7 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
     G53 G0 Z${settings.zSafe}
     ${postBeforeReturn}
     ${returnSection}
-    M51 P[#<return_spov>]
+    ${ovr ? 'M51 P[#<return_spov>]' : ''}
     G[#<return_units>]
     G90
     ${postBeforeReturn ? '' : modalSafe(postToolChangeCmd, 'post')}
@@ -764,6 +768,7 @@ function handleM6Command(commands, context, settings) {
   const toolChangeProgram = buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets, {
     keepZero: zeroKeepPlan(context, currentTool).keep,
     currentOffsets: getToolOffsets(currentTool, context.tools),
+    overrideControl: context.controller?.overrideControl,
     tools: context.tools,
     returnTo: mpos && typeof mpos.x === 'number' && typeof mpos.y === 'number' ? { x: mpos.x, y: mpos.y } : null,
   });
