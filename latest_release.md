@@ -1,4 +1,4 @@
 ## What's Changed
 
 ### 🐛 Bug Fixes
-- Fixed tool changes on FluidNC stopping at M51, so they now run through to the end
+- Probing before a tool change now shows a single prompt, and the tool length measurement waits for you to confirm it before it starts
