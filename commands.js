@@ -366,8 +366,13 @@ function createToolUnload(settings, currentTool, targetTool, tools) {
 
 function createToolLoad(settings, toolNumber, hasUnload, currentTool, tools) {
   const wasManualUnload = hasUnload && isManualTool(currentTool, settings, tools);
+  // The probe's own unload prompt is skipped when a tool follows (see
+  // buildUnloadTool), unless a Probe Unload routine handles it instead.
+  const fromProbe = hasUnload && currentTool === PROBE_TOOL_NUMBER && !(settings.probeUnloadGcode?.trim());
   const useRCS = settings.autoSwap && !isManualTool(toolNumber, settings, tools);
-  const messageCode = useRCS
+  const messageCode = fromProbe
+    ? (useRCS ? `PLUGIN_MANUALTOOLCHANGE:LOAD_AFTER_PROBE_MESSAGE_${toolNumber}` : `PLUGIN_MANUALTOOLCHANGE:SWAP_FROM_PROBE_MANUAL_${toolNumber}`)
+    : useRCS
     ? (wasManualUnload ? `PLUGIN_MANUALTOOLCHANGE:LOAD_AFTER_MANUAL_MESSAGE_${toolNumber}` : `PLUGIN_MANUALTOOLCHANGE:LOAD_MESSAGE_${toolNumber}`)
     : (wasManualUnload ? `PLUGIN_MANUALTOOLCHANGE:SWAP_MESSAGE_MANUAL_${toolNumber}` : `PLUGIN_MANUALTOOLCHANGE:LOAD_MESSAGE_MANUAL_${toolNumber}`);
 
@@ -427,14 +432,20 @@ function buildUnloadTool(settings, currentTool, targetTool, tools) {
         M61 Q0
       `.trim();
     } else {
+      // With a tool to load next, the load prompt says "remove the probe and
+      // install T1": one prompt, one pause. Two pauses back to back with no
+      // move between them was the bug where Continue on "unload probe" also
+      // released "install T1" and the TLS ran on an empty spindle.
+      const promptHere = targetTool === 0 ? `
+        G4 P0
+        (MSG, PLUGIN_MANUALTOOLCHANGE:MANUAL_UNLOAD_PROBE_${PROBE_TOOL_NUMBER})
+        M0` : '';
       return `
         (Unload Probe Tool T${PROBE_TOOL_NUMBER})
         G53 G0 Z${settings.zSafe}
         G53 G0 X${settings.parking.x} Y${settings.parking.y}
         G53 G0 Z0
-        G4 P0
-        (MSG, PLUGIN_MANUALTOOLCHANGE:MANUAL_UNLOAD_PROBE_${PROBE_TOOL_NUMBER})
-        M0
+        ${promptHere}
         M61 Q0
       `.trim();
     }

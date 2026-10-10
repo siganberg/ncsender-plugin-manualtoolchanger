@@ -44,6 +44,16 @@
       "message": "Please remove the current bit and install {toolNumber} securely, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
       "continueLabel": "Continue"
     },
+    "SWAP_FROM_PROBE_MANUAL": {
+      "title": "Tool Change",
+      "message": "Please remove the probe and install {toolNumber} securely, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
+      "continueLabel": "Continue"
+    },
+    "LOAD_AFTER_PROBE_MESSAGE": {
+      "title": "Tool Change",
+      "message": "Remove the probe and confirm {toolNumber} is placed securely in the pocket. Keep hands clear. Click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
+      "continueLabel": "Continue"
+    },
     "LOAD_MESSAGE": {
       "title": "Loading",
       "message": "Confirm {toolNumber} is placed securely in the pocket and keep hands clear. Click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
