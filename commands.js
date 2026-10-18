@@ -295,7 +295,7 @@ function createToolLengthSetRoutine(settings, toolOffsets = { x: 0, y: 0, z: 0 }
     #<_cur_wcs_z_ofs> = #[#<_ofs_idx>]
     #<_rc_trigger_mach_z> = [#5063 + #<_cur_wcs_z_ofs>]
     ${applyOffset}
-    G53 G91 G0 Z${settings.zSafe}
+    G53 G0 Z${settings.zSafe}
   `.trim();
 }
 
