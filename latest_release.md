@@ -1,4 +1,4 @@
 ## What's Changed
 
 ### 🐛 Bug Fixes
-- Probing before a tool change now shows a single prompt, and the tool length measurement waits for you to confirm it before it starts
+- The lift move during a tool change now uses machine coordinates, and the machine no longer stays in incremental mode after a tool change, so the moves that follow behave as expected
