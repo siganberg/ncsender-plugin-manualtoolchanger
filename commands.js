@@ -160,13 +160,12 @@ const buildInitialConfig = (raw = {}) => {
 
 // === Tool Offset Lookup (pure, from pre-fetched array) ===
 
-// A T number names a slot first, then a Tool ID — the order the app itself
-// uses — so a tool that isn't in any slot still gets its own offsets rather
-// than silently getting none. Offsets belong to the tool, never the slot.
+// A T number is the Tool ID, as the app's tool list numbers it (the slot
+// with Slot numbering). Never the slot as a fallback: with Tool ID numbering
+// that is another tool, and its offsets would be used. Offsets belong to the
+// tool, never the slot.
 function findTool(toolNumber, tools) {
-  // A T number is the Tool ID; a slot is only a fallback.
-  return tools.find((t) => t.toolId === toolNumber)
-    || tools.find((t) => t.toolNumber === toolNumber);
+  return tools.find((t) => t.toolId === toolNumber);
 }
 
 function getToolOffsets(toolNumber, tools) {
