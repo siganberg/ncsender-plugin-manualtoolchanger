@@ -1,4 +1,4 @@
 ## What's Changed
 
 ### 🐛 Bug Fixes
-- The lift move during a tool change now uses machine coordinates, and the machine no longer stays in incremental mode after a tool change, so the moves that follow behave as expected
+- Tools are now matched by their Tool ID only, never by their slot number, so the plugin no longer picks the wrong tool when a slot number happens to equal another tool's ID
