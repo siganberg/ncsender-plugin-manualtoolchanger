@@ -1029,6 +1029,10 @@
               <button type="button" class="rc-btn rc-btn-sm" id="rcs-pocket1-grab">Grab current</button>
             </div>
           </div>
+          <div class="rc-field-inline">
+            <label for="rcs-keepout-padding" id="rcs-label-keepout-padding">Safety Margin (mm)</label>
+            <input type="number" class="rc-input" id="rcs-keepout-padding" value="60" min="0" step="0.1">
+          </div>
         </div>
 
         <!-- RPM + retract -->
@@ -1439,6 +1443,7 @@
       const u = unitLabel(), f = feedLabel();
       const map = {
         'rcs-label-z-retreat': 'Retract (' + u + ')',
+        'rcs-label-keepout-padding': 'Safety Margin (' + u + ')',
         'rcs-label-seek-distance': 'Seek Distance (' + u + ')',
         'rcs-label-seek-feedrate': 'Seek Feedrate (' + f + ')',
         'rcs-label-second-seek-distance': 'Second Seek Distance (' + u + ')',
@@ -1463,7 +1468,7 @@
       'rcs-toolsetter-x', 'rcs-toolsetter-y', 'rcs-toolsetter-z',
       'rcs-parking-x', 'rcs-parking-y',
       'rcs-pocket1-x', 'rcs-pocket1-y', 'rcs-zengagement',
-      'rcs-z-retreat', 'rcs-seek-distance', 'rcs-seek-feedrate',
+      'rcs-z-retreat', 'rcs-keepout-padding', 'rcs-seek-distance', 'rcs-seek-feedrate',
       'rcs-second-seek-distance', 'rcs-second-seek-feedrate'
     ];
     const applyUnitInputConstraints = () => {
@@ -1539,6 +1544,7 @@
       getInput('rcs-unload-rpm').value = initialConfig.unloadRpm || 1500;
       getInput('rcs-load-rpm').value = initialConfig.loadRpm || 1200;
       getInput('rcs-z-retreat').value = formatCoordinate(initialConfig.zRetreat || 12);
+      getInput('rcs-keepout-padding').value = formatCoordinate(initialConfig.keepoutPadding ?? 60);
       getInput('rcs-second-seek-distance').value = formatCoordinate(initialConfig.secondSeekDistance || 1);
       getInput('rcs-second-seek-feedrate').value = formatCoordinate(initialConfig.secondSeekFeedrate || 25);
       getInput('rcs-second-probe-delay').value = initialConfig.secondProbeDelay ?? 0.2;
@@ -1675,6 +1681,7 @@
         zRetreat: Math.min(20, Math.max(5, readMetric('rcs-z-retreat', 12))),
         autoSwap: autoSwapToggle ? autoSwapToggle.classList.contains('active') : false,
         numberOfTools: Math.min(98, Math.max(1, parseInt(getInput('rcs-number-of-tools')?.value) || 1)),
+        keepoutPadding: Math.max(0, readMetric('rcs-keepout-padding', 60)),
         pauseBeforeUnload: pauseBeforeUnloadToggle ? pauseBeforeUnloadToggle.classList.contains('active') : true,
         waitForSpindle: waitForSpindleToggle ? waitForSpindleToggle.classList.contains('active') : true,
         showMacroCommand: showMacroCommandToggle ? showMacroCommandToggle.classList.contains('active') : false,
@@ -1730,8 +1737,74 @@
       });
       if (!settingsResponse.ok) throw new Error('Failed to update tool settings: ' + settingsResponse.status);
 
+      await syncKeepoutZone(payload);
       isDirty = false;
     };
+
+    // ---------- ATC Zone (Pro) ----------
+    // With the Solo on, Pro shows the pocket as an ATC Zone in Keepout
+    // Zones, padded by the Safety Margin: jogs stop at its edge and other
+    // moves go around it, while the Solo's own moves still go in (see
+    // withKeepoutBypass in commands.js). Turning the Solo off removes the
+    // zone. Community has no keepout zones; an older Pro core without the
+    // endpoint answers 404 and is left alone. A failure never fails the save.
+    const KEEPOUT_URL = BASE_URL + '/api/keepout/managed/com.ncsender.manualtoolchange';
+    async function syncKeepoutZone(payload) {
+      try {
+        if (!(await isProCore())) return;
+        if (!payload.autoSwap) {
+          await fetch(KEEPOUT_URL, { method: 'DELETE' });
+          return;
+        }
+        let pad = payload.keepoutPadding;
+        let minX = payload.pocket1.x - pad, maxX = payload.pocket1.x + pad;
+        let minY = payload.pocket1.y - pad, maxY = payload.pocket1.y + pad;
+        const limits = await getMachineLimits();
+        if (limits) {
+          minX = Math.max(minX, limits.minX); maxX = Math.min(maxX, limits.maxX);
+          minY = Math.max(minY, limits.minY); maxY = Math.min(maxY, limits.maxY);
+        }
+        if (!(maxX > minX) || !(maxY > minY)) return;
+        await fetch(KEEPOUT_URL, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'ATC Zone', minX, minY, maxX, maxY })
+        });
+      } catch (err) {
+        console.warn('[ManualToolChange] keepout zone sync failed:', err);
+      }
+    }
+
+    async function isProCore() {
+      try {
+        const res = await fetch(BASE_URL + '/api/app-info');
+        if (!res.ok) return false;
+        const info = await res.json();
+        return !!info && info.edition === 'pro';
+      } catch (err) {
+        return false;
+      }
+    }
+
+    // Machine travel from $130/$131 and the homing corner, so the zone never
+    // reaches past the bed. Null when unknown: the zone is left unclamped.
+    async function getMachineLimits() {
+      try {
+        const [fw, st] = await Promise.all([fetch(BASE_URL + '/api/firmware'), fetch(BASE_URL + '/api/settings')]);
+        if (!fw.ok || !st.ok) return null;
+        const firmware = await fw.json();
+        const settings = await st.json();
+        const sx = parseFloat(firmware?.settings?.['130']?.value ?? '');
+        const sy = parseFloat(firmware?.settings?.['131']?.value ?? '');
+        if (!(sx > 0) || !(sy > 0)) return null;
+        const home = settings?.homeLocation || 'back-left';
+        const xMax = home === 'back-right' || home === 'front-right';
+        const yMax = home === 'back-left' || home === 'back-right';
+        return { minX: xMax ? -sx : 0, maxX: xMax ? 0 : sx, minY: yMax ? -sy : 0, maxY: yMax ? 0 : sy };
+      } catch (err) {
+        return null;
+      }
+    }
 
     // ---------- Close-with-unsaved modal ----------
     const closeDialog = () => window.postMessage({ type: 'close-plugin-dialog' }, '*');
@@ -1847,7 +1920,7 @@
     const updateRapidChangeState = () => {
       const isEnabled = autoSwapToggle && autoSwapToggle.classList.contains('active');
       ['rcs-number-of-tools','rcs-pocket1-x','rcs-pocket1-y','rcs-zengagement','rcs-pocket1-grab',
-       'rcs-unload-rpm','rcs-load-rpm','rcs-z-retreat'].forEach(id => {
+       'rcs-unload-rpm','rcs-load-rpm','rcs-z-retreat','rcs-keepout-padding'].forEach(id => {
         const el = getInput(id);
         if (el) el.disabled = !isEnabled;
       });

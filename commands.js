@@ -114,6 +114,9 @@ const buildInitialConfig = (raw = {}) => {
     // RapidChangeSolo magazine size: tools in slots 1..numberOfTools go
     // through the Solo; anything else is swapped by hand (see isManualTool).
     numberOfTools: Math.max(1, Math.round(toFiniteNumber(raw.numberOfTools, 1))),
+    // Pro: the Solo is published as an ATC Zone in Keepout Zones, padded by
+    // this much on every side of the pocket (see config.html).
+    keepoutPadding: Math.max(0, toFiniteNumber(raw.keepoutPadding, 60)),
 
     // UI Toggle Settings
     autoSwap: raw.autoSwap === true,
@@ -187,6 +190,29 @@ const formatGCode = (gcode) => {
     .map(line => line.trim())
     .filter(line => line.length > 0);
 };
+
+// === Keepout ===
+//
+// With the Solo on, Pro shows it as an ATC Zone: jogs stop at its edge and
+// other moves go around it. The Solo routines have to go in, so their G53
+// moves carry the `$keepout_off` prefix, one line at a time, so an aborted
+// change can't leave the check off. It only lifts ATC zones; the user's own
+// zones are still enforced. Community has no keepout, so no prefix there.
+let _coreEdition = 'unknown';
+
+// The move back to where the change started is the operator's position,
+// not one this plugin can vouch for: it keeps its keepout check.
+const CORE_CHECKED_MARKER = '(ncs-checked)';
+const G53_PATTERN = /(^|[^A-Z])G0*53(?:[^0-9]|$)/i;
+
+function withKeepoutBypass(lines, settings) {
+  const bypass = _coreEdition === 'pro' && !!settings.autoSwap;
+  return lines.map((line) => {
+    const checked = line.includes(CORE_CHECKED_MARKER);
+    const emitted = checked ? line.replace(CORE_CHECKED_MARKER, '').trimEnd() : line;
+    return bypass && !checked && G53_PATTERN.test(emitted) ? `$keepout_off ${emitted}` : emitted;
+  });
+}
 
 // === Routine Generators ===
 
@@ -556,7 +582,7 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
     : '';
   const returnTo = options.returnTo;
   const returnSection = returnTo && isFinite(returnTo.x) && isFinite(returnTo.y)
-    ? `G53 G0 X${returnTo.x} Y${returnTo.y}`
+    ? `G53 G0 X${returnTo.x} Y${returnTo.y} ${CORE_CHECKED_MARKER}`
     : '';
   const hasUnload = currentTool !== 0;
 
@@ -601,7 +627,7 @@ function buildToolChangeProgram(settings, currentTool, toolNumber, toolOffsets =
     (End of Manual ToolChanger Sequence)
   `.trim();
 
-  return formatGCode(gcode);
+  return withKeepoutBypass(formatGCode(gcode), settings);
 }
 
 // === Command Handlers (synchronous, no host dependency) ===
@@ -637,7 +663,7 @@ function handleTLSCommand(commands, context, settings) {
     ${modalSafe(postToolChangeCmd, 'post')}
     (End of Tool Length Setter)
   `.trim();
-  const tlsProgram = formatGCode(gcode);
+  const tlsProgram = withKeepoutBypass(formatGCode(gcode), settings);
   const showMacroCommand = settings.showMacroCommand ?? false;
 
   const expandedCommands = tlsProgram.map((line, index) => {
@@ -675,7 +701,7 @@ function handlePocket1Command(commands, settings) {
     G53 G21 G90 G0 X${settings.pocket1.x} Y${settings.pocket1.y}
   `.trim();
 
-  const pocket1Program = formatGCode(gcode);
+  const pocket1Program = withKeepoutBypass(formatGCode(gcode), settings);
   const showMacroCommand = settings.showMacroCommand ?? false;
 
   const expandedCommands = pocket1Program.map((line, index) => {
@@ -807,6 +833,7 @@ function handleM6Command(commands, context, settings) {
 // === Main Entry Point ===
 
 function onBeforeCommand(commands, context, settings) {
+  _coreEdition = (context && typeof context.edition === 'string') ? context.edition : 'unknown';
   // Use core app's safe Z height setting, fallback to 0 (machine Z0)
   if (context && context.safeZHeight !== undefined) {
     settings.zSafe = context.safeZHeight;
