@@ -1,4 +1,4 @@
 ## What's Changed
 
 ### ✨ New Features
-- The Solo is now shown as an ATC Zone in the Pro keepout
+- Tool change prompts now show a heading followed by one line per step, matching the new step list layout so instructions are easier to follow
