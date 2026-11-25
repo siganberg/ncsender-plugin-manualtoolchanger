@@ -31,53 +31,73 @@
   "messages": {
     "LOAD_MESSAGE_MANUAL": {
       "title": "Loading",
+      "heading": "Load this tool into the spindle",
       "message": "Please install {toolNumber} securely, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Install {toolNumber} securely, then continue."
     },
     "UNLOAD_MESSAGE_MANUAL": {
       "title": "Unloading",
+      "heading": "Remove this tool from the spindle",
       "message": "Please remove {toolNumber}, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Remove {toolNumber}, then continue."
     },
     "SWAP_MESSAGE_MANUAL": {
       "title": "Tool Change",
+      "heading": "Swap to this tool",
       "message": "Please remove the current bit and install {toolNumber} securely, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Remove the current bit and install {toolNumber} securely, then continue."
     },
     "SWAP_FROM_PROBE_MANUAL": {
       "title": "Tool Change",
+      "heading": "Swap the probe for this tool",
       "message": "Please remove the probe and install {toolNumber} securely, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Remove the probe and install {toolNumber} securely, then continue."
     },
     "LOAD_AFTER_PROBE_MESSAGE": {
       "title": "Tool Change",
+      "heading": "The machine picks this tool up from the pocket",
       "message": "Remove the probe and confirm {toolNumber} is placed securely in the pocket. Keep hands clear. Click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Remove the probe and check that {toolNumber} sits securely in the pocket. Keep hands clear, then continue."
     },
     "LOAD_MESSAGE": {
       "title": "Loading",
+      "heading": "The machine picks this tool up from the pocket",
       "message": "Confirm {toolNumber} is placed securely in the pocket and keep hands clear. Click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Check that {toolNumber} sits securely in the pocket. Keep hands clear, then continue."
     },
     "LOAD_AFTER_MANUAL_MESSAGE": {
       "title": "Tool Change",
+      "heading": "The machine picks this tool up from the pocket",
       "message": "Remove the current bit and confirm {toolNumber} is placed securely in the pocket. Keep hands clear. Click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Remove the current bit and check that {toolNumber} sits securely in the pocket. Keep hands clear, then continue."
     },
     "UNLOAD_MESSAGE": {
       "title": "Unloading",
+      "heading": "The machine puts this tool into the pocket",
       "message": "Ensure the pocket is empty and keep hands clear. Click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Make sure the pocket is empty. Keep hands clear, then continue."
     },
     "MANUAL_LOAD_PROBE": {
       "title": "Load Probe",
+      "heading": "Load the probe into the spindle",
       "message": "Please install the probe tool securely, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Install the probe securely, then continue."
     },
     "MANUAL_UNLOAD_PROBE": {
       "title": "Unload Probe",
+      "heading": "Remove the probe from the spindle",
       "message": "Please remove the probe tool, then click <em>\"Continue\"</em> to proceed or <em>\"Abort\"</em> to cancel.",
-      "continueLabel": "Continue"
+      "continueLabel": "Continue",
+      "continueTask": "Remove the probe, then continue."
     }
   }
 }
