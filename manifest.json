@@ -15,7 +15,8 @@
     "pro-v2": "2.0.0"
   },
   "events": [
-    "onBeforeCommand"
+    "onBeforeCommand",
+    "onSettingsApplied"
   ],
   "permissions": [
     "gcode.modify"

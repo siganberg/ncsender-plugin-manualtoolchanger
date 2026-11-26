@@ -832,6 +832,46 @@ function handleM6Command(commands, context, settings) {
 
 // === Main Entry Point ===
 
+// === What follows from the settings ===
+//
+// ncSender calls onSettingsApplied whenever these settings come into effect:
+// at startup, after an install or update, on enable, after Save, and when the
+// controller connects. What is published from the settings is published here,
+// so an update takes effect without anyone opening the settings page and
+// pressing Save. (The page still does the same on Save, for an ncSender from
+// before this hook.) Safe to repeat.
+
+// The RapidChangeSolo's pocket as an ATC Zone, padded by the Safety Margin
+// and cut off at the machine's travel. [] removes the zone: the Solo is off.
+// Null leaves it as it is: the travel isn't known yet (the page has always
+// clipped the zone, so an unclipped one would flip the saved zone at every
+// start until the controller connects), or the box is wholly off the bed.
+function keepoutZonesToPublish(settings, limits) {
+  if (!settings.autoSwap) return [];
+  if (!limits) return null;
+  const pad = settings.keepoutPadding;
+  const zone = {
+    name: 'ATC Zone',
+    minX: Math.max(settings.pocket1.x - pad, limits.minX),
+    minY: Math.max(settings.pocket1.y - pad, limits.minY),
+    maxX: Math.min(settings.pocket1.x + pad, limits.maxX),
+    maxY: Math.min(settings.pocket1.y + pad, limits.maxY),
+  };
+  const real = [zone.minX, zone.minY, zone.maxX, zone.maxY].every(Number.isFinite)
+    && zone.maxX > zone.minX && zone.maxY > zone.minY;
+  return real ? [zone] : null;
+}
+
+function onSettingsApplied(settings) {
+  const host = typeof pluginContext !== 'undefined' ? pluginContext : null;
+  // Pro only: Community has no keepout, so no setKeepoutZones.
+  if (!host || !settings || typeof host.setKeepoutZones !== 'function') return;
+  let limits = null;
+  try { limits = typeof host.getMachineLimits === 'function' ? host.getMachineLimits() : null; } catch (_) { limits = null; }
+  const zones = keepoutZonesToPublish(settings, limits);
+  if (zones) host.setKeepoutZones(zones);
+}
+
 function onBeforeCommand(commands, context, settings) {
   _coreEdition = (context && typeof context.edition === 'string') ? context.edition : 'unknown';
   // Use core app's safe Z height setting, fallback to 0 (machine Z0)
